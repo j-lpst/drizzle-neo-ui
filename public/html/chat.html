@@ -91,6 +91,10 @@
     padding: 16px;
     border-bottom: 1px solid #ddd;
     font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
   }
 
   #chatMessages {
@@ -140,6 +144,21 @@
     cursor: pointer;
   }
 
+    /* Title + logo container */
+  .sidebar-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  /* Small sidebar logo */
+  .sidebar-logo {
+    height: 30px;
+    width: auto;
+    margin-top: -13px;
+  }
+
   </style>
 </head>
 
@@ -147,7 +166,13 @@
 
 <!-- Sidebar -->
 <div id="sidebar">
-  <header>DrizzleChat</header>
+  <header>
+  <div class="sidebar-title">
+    <img src="C:\Users\rikuh\Desktop\Drizzle HTML\drizzle-neo-ui\public\media\drizzle_logo_2.png" alt="Drizzle AI Logo" class="sidebar-logo">
+    <span class="title-text">DrizzleChat</span>
+  </div>
+  </header>
+
 
   <div id="conversations">
     <div class="conversation">🌱 Plant Care Help</div>
@@ -212,6 +237,22 @@
 
     chat.scrollTop = chat.scrollHeight;
   }
+  // Press enter to send
+  const chatInput = document.getElementById("chatInput");
+
+  chatInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault(); // prevents newline / form submit
+      sendChat();
+    }
+  });
+// Press shift + enter for a new line (NEEDS FIXING by making input into textarea element)
+  chatInput.addEventListener("keydown", function (e) {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+});
 </script>
 
 </body>
