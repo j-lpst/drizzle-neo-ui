@@ -1,0 +1,204 @@
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: black;
+  font-size: 16px;
+  font-style: italic;
+  text-decoration: none;
+}
+
+a:hover {
+  color: blue; /* Change color when hovering */
+  font-size: 16px;
+  font-style: italic;
+  text-decoration: none;
+}
+
+body {
+  font-family: Arial;
+  margin: 0;
+}
+
+.header {
+  padding: 60px;
+  text-align: center;
+  background: #000000;
+  background-image: url('../media/drizzle_logo.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center center;
+  text-shadow: 12px 12px 20px rgba(0, 0, 0, 0.7);
+  border-radius: 20px;
+  font-size: 2em;
+  font-weight: bold;
+  color: white;
+}
+
+.header h1{
+  font-size: 48px;
+}
+
+button {
+  background-color: #333; /* Green background */
+  border: none; /* Remove borders */
+  color: white; /* White text */
+  padding: 15px 32px; /* Some padding */
+  text-align: center; /* Centered text */
+  text-decoration: none; /* Remove underline */
+  display: inline-block; /* Make the button inline */
+  font-size: 16px; /* Increase font size */
+  margin: 4px 2px; /* Some margin */
+  cursor: pointer; /* Pointer/hand icon */
+}
+
+button:hover {
+ background-color: #ddd;
+ color: black;
+}
+
+.note {
+  text-align: center;
+  font-size: 24px;
+}
+
+.footer {
+  padding: 20px;
+  text-align: center;
+  background: #ddd;
+  font-size: 16px;
+}
+
+/* Navigaatiopalkki */
+.navbar {
+  display: flex;
+  background-color: #333;
+}
+
+.navbar a {
+  color: white;
+  padding: 14px 20px;
+  text-decoration: none;
+  text-align: center;
+}
+
+.navbar a:hover {
+  background-color: #ddd;
+  color: black;
+}
+
+/* Flexbox-rivit ja -sarakkeet */
+.row {  
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.main {
+  flex: 70%;
+  background-color: #f1f1f1;
+  padding: 20px;
+}
+
+.side {
+  flex: 30%;
+  background-color: white;
+  padding: 20px;
+}
+
+@media screen and (max-width: 800px) {
+  .row, .navbar {   
+    flex-direction: column;
+  }
+}
+
+button:hover {
+  background-color: #ddd;
+  color: black;
+ }
+
+ /* Chat widget container */
+#chatWidget {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 300px;
+  background: #f1f1f1; /* Light gray chat background */
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+  z-index: 9999;
+  font-size: 14px;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+}
+
+/* Chat header */
+#chatHeader {
+  background: #000000; /* Use same black as header/nav */
+  color: white;
+  padding: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  text-align: center;
+  font-size: 16px;
+}
+
+/* Chat body (messages area) */
+#chatBody {
+  height: 260px;
+  overflow-y: auto;
+  padding: 10px;
+  background: #ffffff; /* White for message background */
+}
+
+/* Chat input area */
+#chatInputArea {
+  display: flex;
+  border-top: 1px solid #ccc;
+  background: #eee;
+}
+
+/* Input field */
+#chatInput {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+}
+
+/* Send button */
+#sendBtn {
+  background: #578676; /* Black button */
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+#sendBtn:hover {
+  background: #578676; /* Dark gray on hover */
+}
+
+/* Messages */
+.msg {
+  margin: 6px 0;
+  padding: 6px 10px;
+  border-radius: 12px;
+  max-width: 85%;
+  word-wrap: break-word;
+}
+
+.userMsg {
+  background-color: #d9d9d9; /* Light gray user messages */
+  color: black;
+  align-self: flex-end;
+  font-weight: bold;
+}
+
+.aiMsg {
+  background-color: #000000; /* Black AI messages */
+  color: white;
+  align-self: flex-start;
+}
