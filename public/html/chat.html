@@ -58,12 +58,12 @@
   /* Toggle button (ALWAYS visible) */
   #sidebarToggle {
     position: absolute;
-    top: 20px;
-    left: 260px;
+    top: 10px;
+    left: 270px;
     width: 32px;
     height: 32px;
-    background: #578676;
-    color: white;
+    background: white;
+    color: black;
     border-radius: 0 6px 6px 0;
     display: flex;
     align-items: center;
@@ -71,7 +71,7 @@
     cursor: pointer;
     transition: left 0.3s ease;
     z-index: 20;
-    font-size: 18px;
+    font-size: 35px;
   }
 
   #sidebar.collapsed + #sidebarToggle {
@@ -182,7 +182,7 @@
 </div>
 
 <!-- Toggle Button -->
-<div id="sidebarToggle" onclick="toggleSidebar()">←</div>
+<div id="sidebarToggle" onclick="toggleSidebar()">☰</div>
 
 <!-- Main Chat -->
 <div id="chatContainer">
@@ -203,7 +203,7 @@
 
     sidebar.classList.toggle("collapsed");
 
-    toggle.textContent = sidebar.classList.contains("collapsed") ? "→" : "←";
+    toggle.textContent = sidebar.classList.contains("collapsed") ? "☰" : "☰";
   }
 
 
