@@ -283,6 +283,13 @@
     border-bottom: 1px solid #eee;
   }
 
+  .setting-item input {
+    width: 220px;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+  }
+
   .setting-item:last-child {
     border-bottom: none;
   }
@@ -315,6 +322,12 @@
 
   .toggle-switch.active::after {
     left: 26px;
+  }
+
+  body.dark-mode .setting-item input {
+    background: #111;
+    color: #fff;
+    border-color: #333;
   }
 
   </style>
@@ -367,6 +380,10 @@
       <span>🌙 Dark Mode</span>
       <div class="toggle-switch" onclick="toggleDarkMode(event)"></div>
     </div>
+    <div class="setting-item">
+      <label for="apiBaseInput">🔗 API Base</label>
+      <input id="apiBaseInput" type="text" placeholder="http://127.0.0.1:5000" />
+    </div>
   </div>
 </div>
 
@@ -415,7 +432,25 @@
       document.body.classList.add("dark-mode");
       document.querySelector(".toggle-switch").classList.add("active");
     }
+
+    const apiBaseInput = document.getElementById("apiBaseInput");
+    if (apiBaseInput) {
+      apiBaseInput.value = getApiBase();
+      apiBaseInput.addEventListener("change", function () {
+        const value = apiBaseInput.value.trim();
+        if (value) {
+          localStorage.setItem("apiBase", value);
+        } else {
+          localStorage.removeItem("apiBase");
+          apiBaseInput.value = getApiBase();
+        }
+      });
+    }
   });
+
+  function getApiBase() {
+    return localStorage.getItem("apiBase") || "http://127.0.0.1:5000";
+  }
 
 
   async function sendChat() {
@@ -432,7 +467,8 @@
     chat.scrollTop = chat.scrollHeight;
 
     try {
-      const res = await fetch("/chat", {
+      const apiBase = getApiBase();
+      const res = await fetch(`${apiBase}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -440,7 +476,7 @@
 
       const data = await res.json();
       chat.lastChild.remove();
-      chat.innerHTML += `<div class="msg ai">${data.reply}</div>`;
+      chat.innerHTML += `<div class="msg ai">${data.reply || data.error || "Error responding."}</div>`;
     } catch {
       chat.lastChild.remove();
       chat.innerHTML += `<div class="msg ai">Error responding.</div>`;
