@@ -19,6 +19,59 @@
     overflow: hidden;
   }
 
+  /* Dark Mode */
+  body.dark-mode {
+    background: #0a0a0a;
+  }
+
+  body.dark-mode #chatContainer {
+    background: #000;
+    color: #fff;
+  }
+
+  body.dark-mode #chatHeader {
+    border-bottom-color: #333;
+    color: #fff;
+  }
+
+  body.dark-mode #chatInputArea {
+    border-top-color: #333;
+  }
+
+  body.dark-mode #chatInput {
+    background: #fff;
+    color: #000;
+    border-color: #333;
+  }
+
+  body.dark-mode .msg.user {
+    background: #1a1a1a;
+    color: #fff;
+    border: 2px solid #fff;
+  }
+
+  body.dark-mode .modal-content {
+    background: #000;
+    color: #fff;
+  }
+
+  body.dark-mode .close-btn {
+    color: #999;
+  }
+
+  body.dark-mode .close-btn:hover {
+    color: #fff;
+  }
+
+  body.dark-mode .setting-item {
+    border-bottom-color: #333;
+  }
+
+  body.dark-mode #sidebarToggle {
+    background: #000;
+    color: #fff;
+  }
+
   /* Sidebar */
   #sidebar {
     width: 260px;
@@ -52,6 +105,17 @@
   }
 
   .conversation:hover {
+    background: rgba(0,0,0,0.2);
+  }
+
+  #settings {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    margin-top: auto;
+  }
+
+  #settings:hover {
     background: rgba(0,0,0,0.2);
   }
 
@@ -159,6 +223,99 @@
     margin-top: -13px;
   }
 
+  /* Settings Modal */
+  #settingsModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #settingsModal.open {
+    display: flex;
+  }
+
+  .modal-content {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    width: 400px;
+    max-width: 90%;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+  }
+
+  .close-btn:hover {
+    color: #000;
+  }
+
+  .setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  .setting-item:last-child {
+    border-bottom: none;
+  }
+
+  .toggle-switch {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    background: #ccc;
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: white;
+    top: 2px;
+    left: 2px;
+    transition: left 0.3s;
+  }
+
+  .toggle-switch.active {
+    background: #578676;
+  }
+
+  .toggle-switch.active::after {
+    left: 26px;
+  }
+
   </style>
 </head>
 
@@ -179,6 +336,8 @@
     <div class="conversation">☁️ Cloud Services</div>
     <div class="conversation">🤖 AI Support</div>
   </div>
+
+  <div id="settings" onclick="openSettings()">⚙️ Settings</div>
 </div>
 
 <!-- Toggle Button -->
@@ -196,6 +355,20 @@
   </div>
 </div>
 
+<!-- Settings Modal -->
+<div id="settingsModal" onclick="closeSettingsOnOutside(event)">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>⚙️ Settings</h2>
+      <button class="close-btn" onclick="closeSettings()">×</button>
+    </div>
+    <div class="setting-item">
+      <span>🌙 Dark Mode</span>
+      <div class="toggle-switch" onclick="toggleDarkMode(event)"></div>
+    </div>
+  </div>
+</div>
+
 <script>
   function toggleSidebar() {
     const sidebar = document.getElementById("sidebar");
@@ -205,6 +378,43 @@
 
     toggle.textContent = sidebar.classList.contains("collapsed") ? "☰" : "☰";
   }
+
+  function openSettings() {
+    document.getElementById("settingsModal").classList.add("open");
+  }
+
+  function closeSettings() {
+    document.getElementById("settingsModal").classList.remove("open");
+  }
+
+  function closeSettingsOnOutside(event) {
+    if (event.target.id === "settingsModal") {
+      closeSettings();
+    }
+  }
+
+  function toggleDarkMode(event) {
+    event.stopPropagation();
+    const toggle = event.currentTarget;
+    toggle.classList.toggle("active");
+    document.body.classList.toggle("dark-mode");
+    
+    // Save preference
+    if (document.body.classList.contains("dark-mode")) {
+      localStorage.setItem("darkMode", "enabled");
+    } else {
+      localStorage.setItem("darkMode", "disabled");
+    }
+  }
+
+  // Restore dark mode preference on page load
+  window.addEventListener("DOMContentLoaded", function() {
+    const darkMode = localStorage.getItem("darkMode");
+    if (darkMode === "enabled") {
+      document.body.classList.add("dark-mode");
+      document.querySelector(".toggle-switch").classList.add("active");
+    }
+  });
 
 
   async function sendChat() {
