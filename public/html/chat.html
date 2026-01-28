@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <title>DrizzleChat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   <style>
   * {
     box-sizing: border-box;
@@ -351,7 +351,7 @@
     <div class="conversation">🤖 AI Support</div>
   </div>
 
-  <div id="settings" onclick="openSettings()">⚙️ Settings</div>
+  <div id="settings" onclick="openSettings()"><i class="fa fa-gear"></i> Settings</div>
 </div>
 
 <!-- Toggle Button -->
@@ -373,11 +373,11 @@
 <div id="settingsModal" onclick="closeSettingsOnOutside(event)">
   <div class="modal-content">
     <div class="modal-header">
-      <h2>⚙️ Settings</h2>
+      <h2><i class="fa fa-gear"></i> Settings</h2>
       <button class="close-btn" onclick="closeSettings()">×</button>
     </div>
     <div class="setting-item">
-      <span>🌙 Dark Mode</span>
+      <span><i class="fa fa-moon-o" aria-hidden="true"></i> Dark Mode</span>
       <div class="toggle-switch" onclick="toggleDarkMode(event)"></div>
     </div>
     <div class="setting-item">
