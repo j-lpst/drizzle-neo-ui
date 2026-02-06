@@ -21,11 +21,11 @@
 
   /* Dark Mode */
   body.dark-mode {
-    background: #0a0a0a;
+    background: #252526;
   }
 
   body.dark-mode #chatContainer {
-    background: #000;
+    background: #252526;
     color: #fff;
   }
 
@@ -39,9 +39,9 @@
   }
 
   body.dark-mode #chatInput {
-    background: #fff;
-    color: #000;
-    border-color: #333;
+  background: #fff;
+  color: #000;
+  border-color: #333;
   }
 
   body.dark-mode .msg.user {
@@ -197,7 +197,13 @@
     padding: 10px;
     border-radius: 8px;
     border: 1px solid #ccc;
+    resize: none;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    overflow-y: auto; /* scroll once max height reached */
   }
+
 
   #sendBtn {
     margin-left: 10px;
@@ -364,7 +370,11 @@
   <div id="chatMessages"></div>
 
   <div id="chatInputArea">
-    <input id="chatInput" placeholder="Ask DrizzleChat..." />
+    <textarea
+    id="chatInput"
+    placeholder="Ask DrizzleChat..."
+    rows="1"
+    ></textarea>
     <button id="sendBtn" onclick="sendChat()">Send</button>
   </div>
 </div>
@@ -488,17 +498,29 @@
   const chatInput = document.getElementById("chatInput");
 
   chatInput.addEventListener("keydown", function (e) {
-    if (e.key === "Enter") {
-      e.preventDefault(); // prevents newline / form submit
-      sendChat();
-    }
-  });
-// Press shift + enter for a new line (NEEDS FIXING by making input into textarea element)
-  chatInput.addEventListener("keydown", function (e) {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     sendChat();
   }
+  // Shift+Enter will naturally insert a new line in textarea
+
+  const MAX_LINES = 5;
+
+  chatInput.addEventListener("input", function () {
+    this.style.height = "auto";
+
+    const lineHeight = parseFloat(getComputedStyle(this).lineHeight);
+    const maxHeight = lineHeight * MAX_LINES + 20; // padding buffer
+
+    if (this.scrollHeight > maxHeight) {
+      this.style.height = maxHeight + "px";
+      this.style.overflowY = "auto";
+    } else {
+      this.style.height = this.scrollHeight + "px";
+      this.style.overflowY = "hidden";
+    }
+  });
+
 });
 </script>
 
