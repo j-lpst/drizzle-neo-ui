@@ -84,6 +84,13 @@
     overflow: hidden;
   }
 
+  .sidebar-inner {
+    width: 260px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
   #sidebar.collapsed {
     width: 0;
   }
@@ -343,21 +350,23 @@
 
 <!-- Sidebar -->
 <div id="sidebar">
-  <header>
-  <div class="sidebar-title">
-    <img src="../media/drizzle_logo_2.png" alt="Drizzle AI Logo" class="sidebar-logo">
-    <span class="title-text">DrizzleChat</span>
+  <div class="sidebar-inner">
+    <header>
+    <div class="sidebar-title">
+      <img src="../media/drizzle_logo_2.png" alt="Drizzle AI Logo" class="sidebar-logo">
+      <span class="title-text">DrizzleChat</span>
+    </div>
+    </header>
+
+
+    <div id="conversations">
+      <div class="conversation">🌱 Plant Care Help</div>
+      <div class="conversation">☁️ Cloud Services</div>
+      <div class="conversation">🤖 AI Support</div>
+    </div>
+
+    <div id="settings" onclick="openSettings()"><i class="fa fa-gear"></i> Settings</div>
   </div>
-  </header>
-
-
-  <div id="conversations">
-    <div class="conversation">🌱 Plant Care Help</div>
-    <div class="conversation">☁️ Cloud Services</div>
-    <div class="conversation">🤖 AI Support</div>
-  </div>
-
-  <div id="settings" onclick="openSettings()"><i class="fa fa-gear"></i> Settings</div>
 </div>
 
 <!-- Toggle Button -->
@@ -462,6 +471,16 @@
     return localStorage.getItem("apiBase") || "http://127.0.0.1:5000";
   }
 
+  function formatUserMessage(text) {
+    const escaped = text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+    return escaped.replace(/\n/g, "<br>");
+  }
+
 
   async function sendChat() {
     const input = document.getElementById("chatInput");
@@ -469,8 +488,10 @@
     const text = input.value.trim();
     if (!text) return;
 
-    chat.innerHTML += `<div class="msg user">${text}</div>`;
+    chat.innerHTML += `<div class="msg user">${formatUserMessage(text)}</div>`;
     input.value = "";
+    input.style.height = "auto";
+    input.style.overflowY = "hidden";
     chat.scrollTop = chat.scrollHeight;
 
     chat.innerHTML += `<div class="msg ai">Thinking...</div>`;
@@ -486,10 +507,14 @@
 
       const data = await res.json();
       chat.lastChild.remove();
-      chat.innerHTML += `<div class="msg ai">${data.reply || data.error || "Error responding."}</div>`;
-    } catch {
+      if (!res.ok) {
+        chat.innerHTML += `<div class="msg ai">Error: ${data.error || "Request failed with status " + res.status}</div>`;
+      } else {
+        chat.innerHTML += `<div class="msg ai">${data.reply || "No response"}</div>`;
+      }
+    } catch (error) {
       chat.lastChild.remove();
-      chat.innerHTML += `<div class="msg ai">Error responding.</div>`;
+      chat.innerHTML += `<div class="msg ai">Error: ${error.message || "Failed to connect to server"}</div>`;
     }
 
     chat.scrollTop = chat.scrollHeight;
@@ -498,11 +523,12 @@
   const chatInput = document.getElementById("chatInput");
 
   chatInput.addEventListener("keydown", function (e) {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendChat();
-  }
-  // Shift+Enter will naturally insert a new line in textarea
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendChat();
+    }
+    // Shift+Enter will naturally insert a new line in textarea
+  });
 
   const MAX_LINES = 5;
 
@@ -520,8 +546,6 @@
       this.style.overflowY = "hidden";
     }
   });
-
-});
 </script>
 
 </body>
