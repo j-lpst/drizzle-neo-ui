@@ -180,6 +180,8 @@
     margin-bottom: 12px;
     padding: 10px 14px;
     border-radius: 12px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .user {
@@ -403,6 +405,10 @@
       <label for="apiBaseInput">🔗 API Base</label>
       <input id="apiBaseInput" type="text" placeholder="http://127.0.0.1:5000" />
     </div>
+    <div class="setting-item">
+      <label for="soundInput">🔊 Notification Sound</label>
+      <input id="soundInput" type="text" placeholder="" />
+    </div>
   </div>
 </div>
 
@@ -465,10 +471,96 @@
         }
       });
     }
+
+    const soundInput = document.getElementById("soundInput");
+    if (soundInput) {
+      soundInput.value = getCustomSound();
+      soundInput.addEventListener("change", function () {
+        const value = soundInput.value.trim();
+        if (value) {
+          localStorage.setItem("customSound", value);
+        } else {
+          localStorage.removeItem("customSound");
+          soundInput.value = getCustomSound();
+        }
+      });
+    }
   });
 
   function getApiBase() {
     return localStorage.getItem("apiBase") || "http://127.0.0.1:5000";
+  }
+
+  function getCustomSound() {
+    return localStorage.getItem("customSound") || "";
+  }
+
+  function playSound() {
+    const customSoundPath = getCustomSound();
+    console.log("Attempting to play sound from:", customSoundPath);
+    
+    if (customSoundPath) {
+      // Try to play custom sound directly
+      const audio = new Audio(customSoundPath);
+      
+      audio.addEventListener('canplay', function() {
+        console.log("Sound loaded successfully, playing:", customSoundPath);
+        audio.play().catch((err) => {
+          console.log("Error playing sound:", err);
+          playNotificationSound();
+        });
+      });
+      
+      audio.addEventListener('error', function(e) {
+        console.log("Failed to load custom sound. Error:", e.target.error, "Path:", customSoundPath);
+        playNotificationSound();
+      });
+      
+      audio.load();
+    } else {
+      // Play default sound
+      playNotificationSound();
+    }
+  }
+
+  function playNotificationSound() {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Create a pleasant notification sound: two beeps
+      oscillator.frequency.value = 800; // frequency in Hz
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.1);
+      
+      // Second beep
+      setTimeout(() => {
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        
+        osc2.frequency.value = 1000;
+        osc2.type = 'sine';
+        
+        gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+        
+        osc2.start(audioContext.currentTime);
+        osc2.stop(audioContext.currentTime + 0.15);
+      }, 150);
+    } catch (error) {
+      console.log("Could not play notification sound:", error);
+    }
   }
 
   function formatUserMessage(text) {
@@ -511,6 +603,7 @@
         chat.innerHTML += `<div class="msg ai">Error: ${data.error || "Request failed with status " + res.status}</div>`;
       } else {
         chat.innerHTML += `<div class="msg ai">${data.reply || "No response"}</div>`;
+        playSound();
       }
     } catch (error) {
       chat.lastChild.remove();
