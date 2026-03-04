@@ -305,6 +305,24 @@
     border-radius: 6px;
   }
 
+  .setting-status {
+    font-weight: 600;
+    color: #333;
+  }
+
+  .settings-action-btn {
+    background: #578676;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+
+  .settings-action-btn:hover {
+    filter: brightness(0.95);
+  }
+
   .setting-item:last-child {
     border-bottom: none;
   }
@@ -343,6 +361,10 @@
     background: #111;
     color: #fff;
     border-color: #333;
+  }
+
+  body.dark-mode .setting-status {
+    color: #ddd;
   }
 
   </style>
@@ -406,13 +428,19 @@
       <input id="apiBaseInput" type="text" placeholder="http://127.0.0.1:5000" />
     </div>
     <div class="setting-item">
-      <label for="soundInput">🔊 Notification Sound</label>
-      <input id="soundInput" type="text" placeholder="" />
+      <span>🔊 Notification Sound</span>
+      <span id="soundStatus" class="setting-status">Default sound</span>
+    </div>
+    <div class="setting-item">
+      <span><i class="fa fa-trash" aria-hidden="true"></i> Clear History</span>
+      <button class="settings-action-btn" onclick="clearChatHistory()">Clear</button>
     </div>
   </div>
 </div>
 
 <script>
+  const CHAT_HISTORY_KEY = "chatHistory";
+
   function toggleSidebar() {
     const sidebar = document.getElementById("sidebar");
     const toggle = document.getElementById("sidebarToggle");
@@ -424,6 +452,7 @@
 
   function openSettings() {
     document.getElementById("settingsModal").classList.add("open");
+    updateSoundStatus();
   }
 
   function closeSettings() {
@@ -472,19 +501,7 @@
       });
     }
 
-    const soundInput = document.getElementById("soundInput");
-    if (soundInput) {
-      soundInput.value = getCustomSound();
-      soundInput.addEventListener("change", function () {
-        const value = soundInput.value.trim();
-        if (value) {
-          localStorage.setItem("customSound", value);
-        } else {
-          localStorage.removeItem("customSound");
-          soundInput.value = getCustomSound();
-        }
-      });
-    }
+    updateSoundStatus();
   });
 
   function getApiBase() {
@@ -493,6 +510,12 @@
 
   function getCustomSound() {
     return localStorage.getItem("customSound") || "";
+  }
+
+  function updateSoundStatus() {
+    const soundStatus = document.getElementById("soundStatus");
+    if (!soundStatus) return;
+    soundStatus.textContent = getCustomSound() ? "Custom sound" : "Default sound";
   }
 
   function playSound() {
@@ -573,6 +596,57 @@
     return escaped.replace(/\n/g, "<br>");
   }
 
+  function getChatHistory() {
+    try {
+      const raw = localStorage.getItem(CHAT_HISTORY_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(
+        (item) =>
+          item &&
+          (item.role === "user" || item.role === "ai") &&
+          typeof item.text === "string"
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  function setChatHistory(history) {
+    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(history));
+  }
+
+  function clearChatHistory() {
+    const shouldClear = window.confirm("Clear all chat history? This cannot be undone.");
+    if (!shouldClear) return;
+    localStorage.removeItem(CHAT_HISTORY_KEY);
+    document.getElementById("chatMessages").innerHTML = "";
+  }
+
+  function appendMessage(role, text, persist = true) {
+    const chat = document.getElementById("chatMessages");
+    const msgClass = role === "user" ? "user" : "ai";
+    chat.innerHTML += `<div class="msg ${msgClass}">${formatUserMessage(text)}</div>`;
+
+    if (persist) {
+      const history = getChatHistory();
+      history.push({ role, text });
+      setChatHistory(history);
+    }
+  }
+
+  function restoreChatHistory() {
+    const chat = document.getElementById("chatMessages");
+    chat.innerHTML = "";
+    const history = getChatHistory();
+    for (const message of history) {
+      const msgClass = message.role === "user" ? "user" : "ai";
+      chat.innerHTML += `<div class="msg ${msgClass}">${formatUserMessage(message.text)}</div>`;
+    }
+    chat.scrollTop = chat.scrollHeight;
+  }
+
 
   async function sendChat() {
     const input = document.getElementById("chatInput");
@@ -580,13 +654,16 @@
     const text = input.value.trim();
     if (!text) return;
 
-    chat.innerHTML += `<div class="msg user">${formatUserMessage(text)}</div>`;
+    appendMessage("user", text, true);
     input.value = "";
     input.style.height = "auto";
     input.style.overflowY = "hidden";
     chat.scrollTop = chat.scrollHeight;
 
-    chat.innerHTML += `<div class="msg ai">Thinking...</div>`;
+    const thinking = document.createElement("div");
+    thinking.className = "msg ai";
+    thinking.textContent = "Thinking...";
+    chat.appendChild(thinking);
     chat.scrollTop = chat.scrollHeight;
 
     try {
@@ -598,16 +675,16 @@
       });
 
       const data = await res.json();
-      chat.lastChild.remove();
+      thinking.remove();
       if (!res.ok) {
-        chat.innerHTML += `<div class="msg ai">Error: ${data.error || "Request failed with status " + res.status}</div>`;
+        appendMessage("ai", `Error: ${data.error || "Request failed with status " + res.status}`, true);
       } else {
-        chat.innerHTML += `<div class="msg ai">${data.reply || "No response"}</div>`;
+        appendMessage("ai", data.reply || "No response", true);
         playSound();
       }
     } catch (error) {
-      chat.lastChild.remove();
-      chat.innerHTML += `<div class="msg ai">Error: ${error.message || "Failed to connect to server"}</div>`;
+      thinking.remove();
+      appendMessage("ai", `Error: ${error.message || "Failed to connect to server"}`, true);
     }
 
     chat.scrollTop = chat.scrollHeight;
@@ -639,6 +716,8 @@
       this.style.overflowY = "hidden";
     }
   });
+
+  restoreChatHistory();
 </script>
 
 </body>
