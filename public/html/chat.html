@@ -480,7 +480,8 @@
   }
 
   // Restore dark mode preference on page load
-  window.addEventListener("DOMContentLoaded", function() {
+  window.addEventListener("DOMContentLoaded", async function() {
+    await loadBackendConfig();
     const darkMode = localStorage.getItem("darkMode");
     if (darkMode === "enabled") {
       document.body.classList.add("dark-mode");
@@ -503,6 +504,36 @@
 
     updateSoundStatus();
   });
+
+  //async function loadBackendConfig() {
+    //try {
+      //const response = await fetch("../config.json"); 
+      // myöhemmin voit vaihtaa: http://127.0.0.1:5000/config.json
+
+      //if (!response.ok) {
+        //console.log("Config not found, using defaults");
+        //return;
+      //}
+
+      //const config = await response.json();
+
+      //if (config.apiBase) {
+        //localStorage.setItem("apiBase", config.apiBase);
+      //}
+
+      //if (config.defaultSound) {
+        //localStorage.setItem("customSound", config.defaultSound);
+      //}
+
+      //if (config.darkMode === true) {
+        //localStorage.setItem("darkMode", "enabled");
+      //}
+
+      //console.log("Backend config loaded");
+    //} catch (error) {
+      //console.log("Could not load backend config:", error.message);
+    //}
+  //}
 
   function getApiBase() {
     return localStorage.getItem("apiBase") || "http://127.0.0.1:5000";
