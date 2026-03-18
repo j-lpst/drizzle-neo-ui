@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>DrizzleChat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   <style>
   * {
@@ -565,9 +565,7 @@
 
   <div id="chatInputArea">
     <select id="modelMenu" title="Chat model">
-      <option value="">Model: default</option>
-      <option value="GPT-OSS-20B-Med-MXFP4">GPT-OSS-20B-Med-MXFP4</option>
-      <option value="GPT-OSS-20B-High-MXFP4">GPT-OSS-20B-High-MXFP4</option>
+      <option value="">Loading models...</option>
     </select>
     <textarea
     id="chatInput"
@@ -705,6 +703,8 @@
     }
 
     updateSoundStatus();
+    await loadModels();
+    restoreModelSelection();
   });
 
   function setConfigStatus(message, isError = false) {
@@ -899,6 +899,64 @@
 
   function getApiBase() {
     return localStorage.getItem("apiBase") || "http://127.0.0.1:5000";
+  }
+
+  async function loadModels() {
+    const apiBase = getApiBase();
+    const modelMenu = document.getElementById("modelMenu");
+    
+    if (!modelMenu) {
+      console.error("Model dropdown element not found");
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${apiBase}/models`);
+      const data = await response.json();
+      
+      if (data.models && Array.isArray(data.models)) {
+        const currentSelection = modelMenu.value;
+        modelMenu.innerHTML = '<option value="">Select a model</option>';
+        
+        data.models.forEach(modelId => {
+          const option = document.createElement("option");
+          option.value = modelId;
+          option.textContent = modelId;
+          modelMenu.appendChild(option);
+        });
+        
+        if (currentSelection && data.models.includes(currentSelection)) {
+          modelMenu.value = currentSelection;
+        }
+      } else {
+        modelMenu.innerHTML = '<option value="">No models available</option>';
+      }
+    } catch (error) {
+      console.error("Failed to load models:", error);
+      modelMenu.innerHTML = '<option value="">Failed to load models</option>';
+    }
+  }
+
+  async function restoreModelSelection() {
+    const apiBase = getApiBase();
+    const modelMenu = document.getElementById("modelMenu");
+    
+    if (!modelMenu) {
+      console.error("Model dropdown element not found");
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${apiBase}/config`);
+      const config = await response.json();
+      
+      if (config.model && config.model.model) {
+        modelMenu.value = config.model.model;
+        localStorage.setItem("selectedModel", config.model.model);
+      }
+    } catch (error) {
+      console.error("Failed to restore model selection:", error);
+    }
   }
 
   function getCustomSound() {
@@ -1119,6 +1177,30 @@
       this.style.overflowY = "hidden";
     }
   });
+
+  const modelMenu = document.getElementById("modelMenu");
+  if (modelMenu) {
+    modelMenu.addEventListener("change", async function () {
+      const selectedModel = this.value;
+      
+      if (selectedModel) {
+        localStorage.setItem("selectedModel", selectedModel);
+        
+        try {
+          const apiBase = getApiBase();
+          await fetch(`${apiBase}/config`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model: { model: selectedModel } }),
+          });
+        } catch (error) {
+          console.error("Failed to update model config:", error);
+        }
+      } else {
+        localStorage.removeItem("selectedModel");
+      }
+    });
+  }
 
   restoreChatHistory().catch((error) => {
     appendMessage("ai", `Error loading history: ${error.message || "Failed to connect to server"}`);
