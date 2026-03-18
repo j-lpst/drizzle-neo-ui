@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>DrizzleChat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   <style>
   * {
@@ -334,6 +334,14 @@
     filter: brightness(0.95);
   }
 
+  .settings-action-btn.secondary {
+    background: #6c757d;
+  }
+
+  .settings-action-btn.secondary:hover {
+    filter: brightness(0.92);
+  }
+
   .setting-item:last-child {
     border-bottom: none;
   }
@@ -399,6 +407,125 @@
       min-width: 0;
       width: calc(100% - 96px);
     }
+  }
+
+  /* Config editor modal */
+  #configModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 120;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #configModal.open {
+    display: flex;
+  }
+
+  .config-modal-content {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    width: 720px;
+    max-width: 95%;
+    max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+
+  .config-hint {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    color: #444;
+  }
+
+  .config-form {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .config-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .config-field label {
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  .config-field input,
+  .config-field textarea,
+  .config-field select {
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+    color: #111;
+  }
+
+  .config-field textarea {
+    min-height: 88px;
+    resize: vertical;
+    font-family: Consolas, Monaco, monospace;
+  }
+
+  .config-meta {
+    font-size: 11px;
+    color: #666;
+  }
+
+  #configEditorStatus {
+    margin-top: 10px;
+    min-height: 18px;
+    font-size: 12px;
+    color: #444;
+  }
+
+  #configEditorStatus.error {
+    color: #c62828;
+  }
+
+  .config-editor-actions {
+    margin-top: 14px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  body.dark-mode .config-modal-content {
+    background: #000;
+    color: #fff;
+    border: 2px solid #fff;
+  }
+
+  body.dark-mode .config-hint,
+  body.dark-mode .config-meta,
+  body.dark-mode #configEditorStatus {
+    color: #ddd;
+  }
+
+  body.dark-mode #configEditorStatus.error {
+    color: #ff8a80;
+  }
+
+  body.dark-mode .config-field input,
+  body.dark-mode .config-field textarea,
+  body.dark-mode .config-field select {
+    background: #111;
+    color: #fff;
+    border-color: #333;
   }
 
   </style>
@@ -472,10 +599,33 @@
       <span><i class="fa fa-trash" aria-hidden="true"></i> Clear History</span>
       <button class="settings-action-btn" onclick="clearChatHistory()">Clear</button>
     </div>
+    <div class="setting-item">
+      <span><i class="fa fa-code" aria-hidden="true"></i> Backend Config</span>
+      <button class="settings-action-btn" onclick="openConfigEditor()">Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Config Editor Modal -->
+<div id="configModal" onclick="closeConfigOnOutside(event)">
+  <div class="config-modal-content">
+    <div class="modal-header">
+      <h2><i class="fa fa-code" aria-hidden="true"></i> Edit Backend Config</h2>
+      <button class="close-btn" onclick="closeConfigEditor()">×</button>
+    </div>
+    <p class="config-hint">These fields come from backend config.json. Change values and click Save. Simple labels are shown first, and every field path is shown below each input.</p>
+    <div id="configForm" class="config-form"></div>
+    <div id="configEditorStatus"></div>
+    <div class="config-editor-actions">
+      <button class="settings-action-btn secondary" onclick="loadBackendConfig()">Reload</button>
+      <button class="settings-action-btn" onclick="saveBackendConfig()">Save changes</button>
+    </div>
   </div>
 </div>
 
 <script>
+  let backendConfigCache = null;
+  let configFieldTypes = {};
 
   function toggleSidebar() {
     const sidebar = document.getElementById("sidebar");
@@ -501,6 +651,21 @@
     }
   }
 
+  function openConfigEditor() {
+    document.getElementById("configModal").classList.add("open");
+    loadBackendConfig();
+  }
+
+  function closeConfigEditor() {
+    document.getElementById("configModal").classList.remove("open");
+  }
+
+  function closeConfigOnOutside(event) {
+    if (event.target.id === "configModal") {
+      closeConfigEditor();
+    }
+  }
+
   function toggleDarkMode(event) {
     event.stopPropagation();
     const toggle = event.currentTarget;
@@ -516,63 +681,223 @@
   }
 
   // Restore dark mode preference on page load
-   window.addEventListener("DOMContentLoaded", async function() {
-     const darkMode = localStorage.getItem("darkMode");
-     if (darkMode === "enabled") {
-       document.body.classList.add("dark-mode");
-       document.querySelector(".toggle-switch").classList.add("active");
-     }
+  window.addEventListener("DOMContentLoaded", async function() {
+    const darkMode = localStorage.getItem("darkMode");
+    if (darkMode === "enabled") {
+      document.body.classList.add("dark-mode");
+      document.querySelector(".toggle-switch").classList.add("active");
+    }
 
-     const apiBaseInput = document.getElementById("apiBaseInput");
-     if (apiBaseInput) {
-       apiBaseInput.value = getApiBase();
-       apiBaseInput.addEventListener("change", function () {
-         const value = apiBaseInput.value.trim();
-         if (value) {
-           localStorage.setItem("apiBase", value);
-         } else {
-           localStorage.removeItem("apiBase");
-           apiBaseInput.value = getApiBase();
-         }
-       });
-     }
+    const apiBaseInput = document.getElementById("apiBaseInput");
+    if (apiBaseInput) {
+      apiBaseInput.value = getApiBase();
+      apiBaseInput.addEventListener("change", function () {
+        const value = apiBaseInput.value.trim();
+        if (value) {
+          localStorage.setItem("apiBase", value);
+        } else {
+          localStorage.removeItem("apiBase");
+          apiBaseInput.value = getApiBase();
+        }
+      });
+    }
 
-     updateSoundStatus();
-     await loadModels();
-     restoreModelSelection();
-   });
+    updateSoundStatus();
+    await loadModels();
+    restoreModelSelection();
+  });
 
-  //async function loadBackendConfig() {
-    //try {
-      //const response = await fetch("../config.json"); 
-      // myöhemmin voit vaihtaa: http://127.0.0.1:5000/config.json
+  function setConfigStatus(message, isError = false) {
+    const status = document.getElementById("configEditorStatus");
+    if (!status) return;
+    status.textContent = message || "";
+    status.classList.toggle("error", isError);
+  }
 
-      //if (!response.ok) {
-        //console.log("Config not found, using defaults");
-        //return;
-      //}
+  function friendlyFieldLabel(path) {
+    const labelMap = {
+      "server.url": "LLM Server URL",
+      "mcp.url": "MCP Server URL",
+      "model.model": "Chat Model",
+      "memory.model": "Memory Model",
+      "memory.max_messages": "Max Messages Before Memory Update",
+      "model.prompt1": "Assistant Rules Prompt",
+      "model.prompt2": "Assistant Personality Prompt",
+      "model.prompt3": "Speech-to-Text Context Prompt",
+      "memory.prompt": "Memory Generation Prompt",
+    };
+    return labelMap[path] || path;
+  }
 
-      //const config = await response.json();
+  function flattenConfig(configObj, prefix = "") {
+    const items = [];
+    const keys = Object.keys(configObj || {});
+    for (const key of keys) {
+      const path = prefix ? `${prefix}.${key}` : key;
+      const value = configObj[key];
+      if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+        items.push(...flattenConfig(value, path));
+      } else {
+        items.push({ path, value });
+      }
+    }
+    return items;
+  }
 
-      //if (config.apiBase) {
-        //localStorage.setItem("apiBase", config.apiBase);
-      //}
+  function setNestedValue(obj, path, value) {
+    const parts = path.split(".");
+    let current = obj;
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      const key = parts[i];
+      if (typeof current[key] !== "object" || current[key] === null || Array.isArray(current[key])) {
+        current[key] = {};
+      }
+      current = current[key];
+    }
+    current[parts[parts.length - 1]] = value;
+  }
 
-      //if (config.defaultSound) {
-        //localStorage.setItem("customSound", config.defaultSound);
-      //}
+  function buildConfigEditorForm(configObj) {
+    const form = document.getElementById("configForm");
+    if (!form) return;
 
-      //if (config.darkMode === true) {
-        //localStorage.setItem("darkMode", "enabled");
-      //}
+    form.innerHTML = "";
+    configFieldTypes = {};
+    const fields = flattenConfig(configObj);
 
-      //console.log("Backend config loaded");
-    //} catch (error) {
-      //console.log("Could not load backend config:", error.message);
-    //}
-  //}
+    for (const field of fields) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "config-field";
 
- function getApiBase() {
+      const label = document.createElement("label");
+      label.textContent = friendlyFieldLabel(field.path);
+      wrapper.appendChild(label);
+
+      let input;
+      const valueType = Array.isArray(field.value) ? "array" : typeof field.value;
+      configFieldTypes[field.path] = valueType;
+
+      if (valueType === "boolean") {
+        input = document.createElement("select");
+        const optFalse = document.createElement("option");
+        optFalse.value = "false";
+        optFalse.textContent = "false";
+        const optTrue = document.createElement("option");
+        optTrue.value = "true";
+        optTrue.textContent = "true";
+        input.appendChild(optFalse);
+        input.appendChild(optTrue);
+        input.value = field.value ? "true" : "false";
+      } else if (valueType === "number") {
+        input = document.createElement("input");
+        input.type = "number";
+        input.value = String(field.value);
+      } else {
+        const textValue = valueType === "object" || valueType === "array"
+          ? JSON.stringify(field.value, null, 2)
+          : String(field.value ?? "");
+
+        if (textValue.length > 120 || textValue.includes("\n")) {
+          input = document.createElement("textarea");
+          input.value = textValue;
+        } else {
+          input = document.createElement("input");
+          input.type = "text";
+          input.value = textValue;
+        }
+      }
+
+      input.dataset.path = field.path;
+      wrapper.appendChild(input);
+
+      const meta = document.createElement("div");
+      meta.className = "config-meta";
+      meta.textContent = `Path: ${field.path}`;
+      wrapper.appendChild(meta);
+
+      form.appendChild(wrapper);
+    }
+  }
+
+  function readConfigFormValues() {
+    const result = {};
+    const inputs = document.querySelectorAll("#configForm [data-path]");
+
+    for (const input of inputs) {
+      const path = input.dataset.path;
+      const valueType = configFieldTypes[path] || "string";
+      let value;
+
+      if (valueType === "boolean") {
+        value = input.value === "true";
+      } else if (valueType === "number") {
+        const parsed = Number(input.value);
+        if (Number.isNaN(parsed)) {
+          throw new Error(`Field '${friendlyFieldLabel(path)}' must be a number.`);
+        }
+        value = parsed;
+      } else if (valueType === "object" || valueType === "array") {
+        try {
+          value = JSON.parse(input.value);
+        } catch {
+          throw new Error(`Field '${friendlyFieldLabel(path)}' must contain valid JSON.`);
+        }
+      } else {
+        value = input.value;
+      }
+
+      setNestedValue(result, path, value);
+    }
+
+    return result;
+  }
+
+  async function loadBackendConfig() {
+    const form = document.getElementById("configForm");
+    if (!form) return;
+
+    try {
+      setConfigStatus("Loading config...");
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/config`);
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to load config (${response.status})`);
+      }
+
+      backendConfigCache = data;
+      buildConfigEditorForm(data);
+      setConfigStatus("Config loaded.");
+    } catch (error) {
+      setConfigStatus(error.message || "Failed to load config", true);
+    }
+  }
+
+  async function saveBackendConfig() {
+    try {
+      const parsed = readConfigFormValues();
+      setConfigStatus("Saving config...");
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/config`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to save config (${response.status})`);
+      }
+
+      backendConfigCache = parsed;
+      setConfigStatus("Config saved successfully.");
+    } catch (error) {
+      setConfigStatus(error.message || "Failed to save config", true);
+    }
+  }
+
+  function getApiBase() {
     return localStorage.getItem("apiBase") || "http://127.0.0.1:5000";
   }
 
@@ -836,24 +1161,24 @@
     // Shift+Enter will naturally insert a new line in textarea
   });
 
-const MAX_LINES = 5;
+  const MAX_LINES = 5;
 
-   chatInput.addEventListener("input", function () {
-     this.style.height = "auto";
+  chatInput.addEventListener("input", function () {
+    this.style.height = "auto";
 
-     const lineHeight = parseFloat(getComputedStyle(this).lineHeight);
-     const maxHeight = lineHeight * MAX_LINES + 20; // padding buffer
+    const lineHeight = parseFloat(getComputedStyle(this).lineHeight);
+    const maxHeight = lineHeight * MAX_LINES + 20; // padding buffer
 
-     if (this.scrollHeight > maxHeight) {
-       this.style.height = maxHeight + "px";
-       this.style.overflowY = "auto";
-     } else {
-       this.style.height = this.scrollHeight + "px";
-       this.style.overflowY = "hidden";
-     }
-   });
+    if (this.scrollHeight > maxHeight) {
+      this.style.height = maxHeight + "px";
+      this.style.overflowY = "auto";
+    } else {
+      this.style.height = this.scrollHeight + "px";
+      this.style.overflowY = "hidden";
+    }
+  });
 
-const modelMenu = document.getElementById("modelMenu");
+  const modelMenu = document.getElementById("modelMenu");
   if (modelMenu) {
     modelMenu.addEventListener("change", async function () {
       const selectedModel = this.value;
