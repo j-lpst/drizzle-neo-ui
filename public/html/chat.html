@@ -21,17 +21,17 @@
 
   /* Dark Mode */
   body.dark-mode {
-    background: #252526;
+    background: rgb(26, 26, 30);
   }
 
   body.dark-mode #chatContainer {
-    background: #252526;
-    color: #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
   }
 
   body.dark-mode #chatHeader {
     border-bottom-color: #333;
-    color: #fff;
+    color: rgb(227, 227, 229);
   }
 
   body.dark-mode #chatInputArea {
@@ -39,21 +39,26 @@
   }
 
   body.dark-mode #chatInput {
-  background: #fff;
-  color: #000;
+  background: rgb(34, 35, 39);
+  color: rgb(227, 227, 229);
   border-color: #333;
   }
 
+  body.dark-mode #chatInput:focus {
+    outline: none;
+    border: 2px solid #999;
+  }
+
   body.dark-mode .msg.user {
-    background: #1a1a1a;
-    color: #fff;
-    border: 2px solid #fff;
+    background: rgb(34, 35, 39);
+    color: rgb(227, 227, 229);
+    border: 1px solid #333;
   }
 
   body.dark-mode .modal-content {
-    background: #000;
-    color: #fff;
-    border: 2px solid #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
+    border: 1px solid #333;
   }
 
   body.dark-mode .close-btn {
@@ -61,7 +66,7 @@
   }
 
   body.dark-mode .close-btn:hover {
-    color: #fff;
+    color: rgb(227, 227, 229);
   }
 
   body.dark-mode .setting-item {
@@ -69,8 +74,8 @@
   }
 
   body.dark-mode #sidebarToggle {
-    background: #000;
-    color: #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
   }
 
   /* Sidebar */
@@ -96,6 +101,7 @@
   }
 
   #sidebar header {
+    height: 50px;
     padding: 16px;
     font-weight: bold;
     white-space: nowrap;
@@ -109,6 +115,7 @@
   .conversation {
     padding: 12px 16px;
     cursor: pointer;
+    border-top: 1px solid rgba(255,255,255,0.2);
     border-bottom: 1px solid rgba(255,255,255,0.2);
   }
 
@@ -119,6 +126,8 @@
   #logs {
     padding: 12px 16px;
     cursor: pointer;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
   }
 
    #logs:hover {
@@ -129,6 +138,8 @@
     padding: 12px 16px;
     cursor: pointer;
     margin-top: auto;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
   }
 
   #logs:hover,
@@ -144,7 +155,7 @@
     width: 32px;
     height: 32px;
     background: white;
-    color: black;
+    color: #578676;
     border-radius: 0 6px 6px 0;
     display: flex;
     align-items: center;
@@ -222,6 +233,11 @@
     font-size: 13px;
   }
 
+  #modelMenu:focus {
+    outline: none;
+    border: 2px solid #578676;
+  }
+
   #chatInput {
     flex: 1;
     padding: 10px;
@@ -232,6 +248,11 @@
     font-size: 14px;
     line-height: 1.4;
     overflow-y: auto; /* scroll once max height reached */
+  }
+
+  #chatInput:focus {
+    outline: none;
+    border: 2px solid #578676;
   }
 
 
@@ -248,8 +269,13 @@
   .sidebar-title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 1px;
     white-space: nowrap;
+  }
+
+  .title-text {
+    font-size: 20px;
+    font-weight: bold;
   }
 
   /* Small sidebar logo */
@@ -386,8 +412,8 @@
   }
 
   body.dark-mode .setting-item input {
-    background: #111;
-    color: #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
     border-color: #333;
   }
 
@@ -396,9 +422,14 @@
   }
 
   body.dark-mode #modelMenu {
-    background: #111;
-    color: #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
     border-color: #333;
+  }
+
+  body.dark-mode #modelMenu:focus {
+    outline: none;
+    border: 2px solid #999;
   }
 
   @media (max-width: 720px) {
@@ -514,9 +545,9 @@
   }
 
   body.dark-mode .config-modal-content {
-    background: #000;
-    color: #fff;
-    border: 2px solid #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
+    border: 1px solid #333;
   }
 
   body.dark-mode .config-hint,
@@ -532,8 +563,8 @@
   body.dark-mode .config-field input,
   body.dark-mode .config-field textarea,
   body.dark-mode .config-field select {
-    background: #111;
-    color: #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
     border-color: #333;
   }
 
@@ -611,7 +642,7 @@
   }
 
   .logs-footer button.secondary {
-    background: #6c757d;
+    background: #578676;
     color: #fff;
   }
 
@@ -629,13 +660,13 @@
   }
 
   body.dark-mode .logs-modal-content {
-    background: #000;
-    color: #fff;
-    border: 2px solid #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
+    border: 1px solid #333;
   }
 
   body.dark-mode .logs-content {
-    background: #1e1e1e;
+    background: #111;
     color: #d4d4d4;
   }
 
