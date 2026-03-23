@@ -1052,33 +1052,35 @@
 
   const startTitle = document.getElementById("startTitle");
   if (startTitle) {
-
-    // Get whatever text is already there in HTML
     let bannerText = document.getElementById("bannerText").textContent.trim();
+    let fetchedBannerText = null;
 
-    try {
-      const apiBase = getApiBase();
-      const response = await fetch(`${apiBase}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: "Continue this sentence: \"Drizzle AI ready to...\".\nIt should be related to the current conversation.\nIt should be limited to 2-3 extra words.\nIt should always begin with \"Drizzle AI ready\"",
-          args: ["-notts","--no-save"]
-        }),
-      });
+    const fetchBannerText = async () => {
+      try {
+        const apiBase = getApiBase();
+        const response = await fetch(`${apiBase}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: "Continue this sentence: \"Drizzle AI ready to...\".\nIt should be related to the current conversation.\nIt should be limited to 2-3 extra words.\nIt should always begin with \"Drizzle AI ready\"",
+            args: ["-notts","--no-save"]
+          }),
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (response.ok && data.reply) {
-        bannerText = data.reply; // overwrite default if AI works
+        if (response.ok && data.reply) {
+          fetchedBannerText = data.reply;
+        }
+      } catch (error) {
+        console.error("Failed to generate welcome message:", error);
       }
+    };
 
-    } catch (error) {
-      console.error("Failed to generate welcome message:", error);
-    }
+    // Start fetch immediately in background (fire and forget)
+    fetchBannerText();
 
-    // Always animate something
-    typewriterLoop(bannerText);
+    typewriterLoopWithFetch(bannerText, () => fetchedBannerText);
   }
 
     const apiBaseInput = document.getElementById("apiBaseInput");
@@ -1651,18 +1653,22 @@
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  async function typewriterLoop(text) {
+  async function typewriterLoopWithFetch(defaultText, getFetchedText) {
     const typingSpeed = 45;
     const deletingSpeed = 25;
 
     const textEl = document.getElementById("bannerText");
     const cursor = document.getElementById("cursor");
 
+    let currentText = defaultText;
+
     while (true) {
+      const fetchedText = getFetchedText();
+      const textToUse = fetchedText || currentText;
 
       // ---- TYPE ----
-      for (let i = 0; i <= text.length; i++) {
-        textEl.textContent = text.slice(0, i);
+      for (let i = 0; i <= textToUse.length; i++) {
+        textEl.textContent = textToUse.slice(0, i);
         await sleep(typingSpeed);
       }
 
@@ -1675,9 +1681,15 @@
       }
 
       // ---- DELETE ----
-      for (let i = text.length; i >= 0; i--) {
-        textEl.textContent = text.slice(0, i);
+      for (let i = textToUse.length; i >= 0; i--) {
+        textEl.textContent = textToUse.slice(0, i);
         await sleep(deletingSpeed);
+      }
+
+      // Update current text if we got a new one
+      const newFetchedText = getFetchedText();
+      if (newFetchedText) {
+        currentText = newFetchedText;
       }
 
       await sleep(400);
