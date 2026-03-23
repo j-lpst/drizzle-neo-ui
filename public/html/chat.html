@@ -1030,6 +1030,24 @@
       document.querySelector(".toggle-switch").classList.add("active");
     }
 
+  const startTitle = document.getElementById("startTitle");
+    if (startTitle) {
+      try {
+        const apiBase = getApiBase();
+        const response = await fetch(`${apiBase}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: "Continue this sentence: \"Drizzle AI ready to...\".\nIt should be related to the current conversation.\nIt should be limited to 2-3 extra words.\nIt should always begin with \"Drizzle AI ready\"", args: ["-notts","--no-save"] }),
+        });
+        const data = await response.json();
+        if (response.ok && data.reply) {
+          startTitle.textContent = data.reply;
+        }
+      } catch (error) {
+        console.error("Failed to generate welcome message:", error);
+      }
+    }
+
     const apiBaseInput = document.getElementById("apiBaseInput");
     if (apiBaseInput) {
       apiBaseInput.value = getApiBase();
