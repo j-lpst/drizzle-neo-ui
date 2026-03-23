@@ -186,8 +186,11 @@
 
   #startTitle {
     font-size: 28px;
-    font-weight: 600;
+    font-weight: 500;
     color: #578676;
+    font-family: "Courier New", Courier, monospace;
+    letter-spacing: 0.5px;
+    text-shadow:  0 0 0 10px #5786764d;
   }
 
   .start-input-wrapper {
@@ -778,6 +781,21 @@
     margin-top: 10px;
   }
 
+  #cursor {
+    display: inline-block;
+    width: 1ch;
+    color: #578676;
+    font-weight: bold;
+  }
+
+  .blink {
+    animation: blinkCursor 0.5s steps(1) infinite;
+  }
+
+  @keyframes blinkCursor {
+    50% { opacity: 0; }
+  }
+
   </style>
 </head>
 
@@ -813,7 +831,9 @@
   <div id="chatHeader">Plant Care Help</div>
 
   <div id="startScreen">
-    <h1 id="startTitle">Drizzle AI ready...</h1>
+    <h1 id="startTitle">
+      <span id="bannerText">Drizzle AI ready...</span><span id="cursor">_</span>
+    </h1>
 
     <div class="start-input-wrapper">
       <textarea
@@ -1031,22 +1051,35 @@
     }
 
   const startTitle = document.getElementById("startTitle");
-    if (startTitle) {
-      try {
-        const apiBase = getApiBase();
-        const response = await fetch(`${apiBase}/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: "Continue this sentence: \"Drizzle AI ready to...\".\nIt should be related to the current conversation.\nIt should be limited to 2-3 extra words.\nIt should always begin with \"Drizzle AI ready\"", args: ["-notts","--no-save"] }),
-        });
-        const data = await response.json();
-        if (response.ok && data.reply) {
-          startTitle.textContent = data.reply;
-        }
-      } catch (error) {
-        console.error("Failed to generate welcome message:", error);
+  if (startTitle) {
+
+    // Get whatever text is already there in HTML
+    let bannerText = document.getElementById("bannerText").textContent.trim();
+
+    try {
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: "Continue this sentence: \"Drizzle AI ready to...\".\nIt should be related to the current conversation.\nIt should be limited to 2-3 extra words.\nIt should always begin with \"Drizzle AI ready\"",
+          args: ["-notts","--no-save"]
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.reply) {
+        bannerText = data.reply; // overwrite default if AI works
       }
+
+    } catch (error) {
+      console.error("Failed to generate welcome message:", error);
     }
+
+    // Always animate something
+    typewriterLoop(bannerText);
+  }
 
     const apiBaseInput = document.getElementById("apiBaseInput");
     if (apiBaseInput) {
@@ -1613,6 +1646,43 @@
   restoreChatHistory().catch((error) => {
     showError(`Error loading history: ${error.message || "Failed to connect to server"}`);
   });
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function typewriterLoop(text) {
+    const typingSpeed = 45;
+    const deletingSpeed = 25;
+
+    const textEl = document.getElementById("bannerText");
+    const cursor = document.getElementById("cursor");
+
+    while (true) {
+
+      // ---- TYPE ----
+      for (let i = 0; i <= text.length; i++) {
+        textEl.textContent = text.slice(0, i);
+        await sleep(typingSpeed);
+      }
+
+      // ---- BLINK 3 TIMES ----
+      for (let i = 0; i < 3; i++) {
+        cursor.style.opacity = "0";
+        await sleep(250);
+        cursor.style.opacity = "1";
+        await sleep(250);
+      }
+
+      // ---- DELETE ----
+      for (let i = text.length; i >= 0; i--) {
+        textEl.textContent = text.slice(0, i);
+        await sleep(deletingSpeed);
+      }
+
+      await sleep(400);
+    }
+  }
 </script>
 
 </body>
