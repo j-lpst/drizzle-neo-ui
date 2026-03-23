@@ -1062,7 +1062,7 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            text: "Continue this sentence: \"Drizzle AI ready to...\".\nIt should be related to the current conversation.\nIt should be limited to 2-3 extra words.\nIt should always begin with \"Drizzle AI ready\"",
+            text: "Continue this sentence: \"Drizzle AI ready to...\".\nIt should be related to the current conversation.\nIt should be limited to 2-3 extra words.\nIt should always begin with \"Drizzle AI ready\". It should not be anything too generic like \"Drizzle AI ready to chat\" or \"Drizzle AI ready to hydrate!\", it should uniquely relate to the conversation",
             args: ["-notts","--no-save"]
           }),
         });
