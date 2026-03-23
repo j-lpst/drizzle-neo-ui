@@ -172,6 +172,77 @@
   }
 
   /* Main chat */
+
+  #startScreen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    transition: opacity 0.3s ease;
+  }
+
+  #startTitle {
+    font-size: 28px;
+    font-weight: 600;
+    color: #578676;
+  }
+
+  .start-input-wrapper {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    max-width: 600px;
+    align-items: flex-end;
+  }
+
+  /* reuse chat input styles */
+  .chat-input-clone {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    resize: none;
+  }
+
+  /* reuse button styles */
+  .send-btn-clone {
+    padding: 10px 16px;
+    background: #578676;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  /* inherit styles from #chatInput */
+  #startInput {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    resize: none;
+  }
+
+  #startInput:focus {
+    outline: none;
+    border-color: #578676;
+    box-shadow: 0 0 0 2px #5786764d;
+  }
+
+  body.dark-mode #startInput {
+    background: rgb(34, 35, 39);
+    color: rgb(227, 227, 229);
+    border-color: #333;
+  }
+
   #chatContainer {
     flex: 1;
     display: flex;
@@ -195,6 +266,11 @@
     overflow-y: auto;
   }
 
+  #chatMessages.hidden,
+  #chatInputArea.hidden {
+    display: none;
+  }
+
   .msg {
     max-width: 70%;
     margin-bottom: 12px;
@@ -205,7 +281,7 @@
   }
 
   .user {
-    background: #e0e0e0;
+    background: rgb(244, 244, 244);
     margin-left: auto;
   }
 
@@ -670,6 +746,28 @@
     color: #d4d4d4;
   }
 
+  #errorModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5); /* dark overlay */
+    z-index: 200;           /* above everything */
+    align-items: center;
+    justify-content: center;
+  }
+
+  #errorModal.open {
+    display: flex;
+  }
+
+  #errorMessage {
+    color: #c62828;
+    margin-top: 10px;
+  }
+
   </style>
 </head>
 
@@ -703,6 +801,21 @@
 <!-- Main Chat -->
 <div id="chatContainer">
   <div id="chatHeader">Plant Care Help</div>
+
+  <div id="startScreen">
+    <h1 id="startTitle">Drizzle AI ready...</h1>
+
+    <div class="start-input-wrapper">
+      <textarea
+        id="startInput"
+        class="chat-input-clone"
+        placeholder="Ask DrizzleChat..."
+        rows="1"
+      ></textarea>
+
+      <button class="send-btn-clone" onclick="sendFromStart()">Send</button>
+    </div>
+  </div>
 
   <div id="chatMessages"></div>
 
@@ -781,6 +894,16 @@
     </div>
   </div>
 
+  <div id="errorModal" onclick="closeErrorOnOutside(event)">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Error</h2>
+        <button class="close-btn" onclick="closeError()">×</button>
+      </div>
+      <div id="errorMessage"></div>
+    </div>
+  </div>
+
 <script>
   let backendConfigCache = null;
   let configFieldTypes = {};
@@ -839,6 +962,21 @@
     }
   }
 
+  function showError(message) {
+  document.getElementById("errorMessage").textContent = message;
+  document.getElementById("errorModal").classList.add("open");
+  }
+
+  function closeError() {
+    document.getElementById("errorModal").classList.remove("open");
+  }
+
+  function closeErrorOnOutside(event) {
+    if (event.target.id === "errorModal") {
+      closeError();
+    }
+  }
+
   async function loadLogs() {
     const logsContent = document.getElementById("logsContent");
     if (!logsContent) return;
@@ -874,6 +1012,8 @@
 
   // Restore dark mode preference on page load
   window.addEventListener("DOMContentLoaded", async function() {
+    document.getElementById("chatMessages").classList.add("hidden");
+    document.getElementById("chatInputArea").classList.add("hidden");
     const darkMode = localStorage.getItem("darkMode");
     if (darkMode === "enabled") {
       document.body.classList.add("dark-mode");
@@ -898,6 +1038,28 @@
     await loadModels();
     restoreModelSelection();
   });
+
+  function activateChatUI() {
+    const start = document.getElementById("startScreen");
+    start.style.opacity = "0";
+
+    setTimeout(() => {
+      start.style.display = "none";
+      document.getElementById("chatMessages").classList.remove("hidden");
+      document.getElementById("chatInputArea").classList.remove("hidden");
+    }, 300);
+  }
+
+  function sendFromStart() {
+    const input = document.getElementById("startInput");
+    const text = input.value.trim();
+    if (!text) return;
+
+    activateChatUI();
+
+    document.getElementById("chatInput").value = text;
+    sendChat();
+  }
 
   function setConfigStatus(message, isError = false) {
     const status = document.getElementById("configEditorStatus");
@@ -1370,6 +1532,32 @@
     }
   });
 
+  const startInput = document.getElementById("startInput");
+
+    if (startInput) {
+      startInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendFromStart();
+        }
+      });
+
+      startInput.addEventListener("input", function () {
+        this.style.height = "auto";
+
+        const lineHeight = parseFloat(getComputedStyle(this).lineHeight);
+        const maxHeight = lineHeight * 5 + 20;
+
+        if (this.scrollHeight > maxHeight) {
+          this.style.height = maxHeight + "px";
+          this.style.overflowY = "auto";
+        } else {
+          this.style.height = this.scrollHeight + "px";
+          this.style.overflowY = "hidden";
+        }
+      });
+    }
+
   const modelMenu = document.getElementById("modelMenu");
   if (modelMenu) {
     modelMenu.addEventListener("change", async function () {
@@ -1395,7 +1583,7 @@
   }
 
   restoreChatHistory().catch((error) => {
-    appendMessage("ai", `Error loading history: ${error.message || "Failed to connect to server"}`);
+    showError(`Error loading history: ${error.message || "Failed to connect to server"}`);
   });
 </script>
 
