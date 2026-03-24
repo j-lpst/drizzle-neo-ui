@@ -113,6 +113,14 @@
     overflow-y: auto;
   }
 
+  #newConversation {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    font-weight: 600;
+  }
+
   .conversation {
     padding: 12px 16px;
     cursor: pointer;
@@ -120,6 +128,16 @@
     border-bottom: 1px solid rgba(255,255,255,0.2);
   }
 
+  .conversation.active {
+    background: rgba(0,0,0,0.28);
+  }
+
+  .conversation-empty {
+    opacity: 0.75;
+    padding: 12px 16px;
+  }
+
+  #newConversation:hover,
   .conversation:hover {
     background: rgba(0,0,0,0.2);
   }
@@ -812,10 +830,8 @@
     </header>
 
 
+    <div id="newConversation" onclick="createConversation()"><i class="fa fa-plus"></i> New Conversation</div>
     <div id="conversations">
-      <div class="conversation">🌱 Plant Care Help</div>
-      <div class="conversation">☁️ Cloud Services</div>
-      <div class="conversation">🤖 AI Support</div>
     </div>
 
     <div id="logs" onclick="openLogs()"><i class="fa fa-file-text-o"></i> Logs</div>
@@ -904,6 +920,7 @@
       <div id="configEditorStatus"></div>
       <div class="config-editor-actions">
         <button class="settings-action-btn secondary" onclick="loadBackendConfig()">Reload</button>
+        <button class="settings-action-btn secondary" onclick="restoreBackendConfigDefaults()">Restore defaults</button>
         <button class="settings-action-btn" onclick="saveBackendConfig()">Save changes</button>
       </div>
     </div>
@@ -937,6 +954,8 @@
 <script>
   let backendConfigCache = null;
   let configFieldTypes = {};
+  let currentConversationFile = "context.json";
+  let conversationFiles = [];
 
   function toggleSidebar() {
     const sidebar = document.getElementById("sidebar");
@@ -1098,9 +1117,146 @@
     }
 
     updateSoundStatus();
+    await initializeConversations();
     await loadModels();
     restoreModelSelection();
   });
+
+  function isConversationFile(filename) {
+    return /^context(\.\d+)?\.json$/i.test(filename || "");
+  }
+
+  function sortConversationFiles(files) {
+    const list = [...files];
+    list.sort((a, b) => {
+      if (a === "context.json") return -1;
+      if (b === "context.json") return 1;
+      const aMatch = a.match(/^context\.(\d+)\.json$/i);
+      const bMatch = b.match(/^context\.(\d+)\.json$/i);
+      const aNum = aMatch ? Number(aMatch[1]) : Number.MAX_SAFE_INTEGER;
+      const bNum = bMatch ? Number(bMatch[1]) : Number.MAX_SAFE_INTEGER;
+      return aNum - bNum;
+    });
+    return list;
+  }
+
+  function formatConversationName(filename) {
+    if (filename === "context.json") return "Main Conversation";
+    const match = filename.match(/^context\.(\d+)\.json$/i);
+    if (match) return `Conversation ${match[1]}`;
+    return filename;
+  }
+
+  function setChatHeaderForConversation(filename) {
+    const chatHeader = document.getElementById("chatHeader");
+    if (!chatHeader) return;
+    chatHeader.textContent = formatConversationName(filename);
+  }
+
+  function renderConversationSidebar() {
+    const container = document.getElementById("conversations");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    if (!conversationFiles.length) {
+      const empty = document.createElement("div");
+      empty.className = "conversation-empty";
+      empty.textContent = "No conversations found";
+      container.appendChild(empty);
+      return;
+    }
+
+    for (const filename of conversationFiles) {
+      const item = document.createElement("div");
+      item.className = "conversation";
+      if (filename === currentConversationFile) {
+        item.classList.add("active");
+      }
+      item.textContent = formatConversationName(filename);
+      item.addEventListener("click", () => openConversation(filename));
+      container.appendChild(item);
+    }
+  }
+
+  async function fetchConversationFiles() {
+    const apiBase = getApiBase();
+    const response = await fetch(`${apiBase}/state`);
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || `Failed to list conversations (${response.status})`);
+    }
+
+    const files = Array.isArray(data.files) ? data.files.filter(isConversationFile) : [];
+    return sortConversationFiles(files);
+  }
+
+  async function initializeConversations() {
+    conversationFiles = await fetchConversationFiles();
+
+    if (!conversationFiles.includes("context.json")) {
+      await createConversationFile("context.json");
+      conversationFiles = await fetchConversationFiles();
+    }
+
+    const saved = localStorage.getItem("selectedConversation") || "context.json";
+    currentConversationFile = conversationFiles.includes(saved) ? saved : (conversationFiles[0] || "context.json");
+
+    renderConversationSidebar();
+    setChatHeaderForConversation(currentConversationFile);
+    await restoreChatHistory(currentConversationFile);
+  }
+
+  async function createConversationFile(filename) {
+    const apiBase = getApiBase();
+    const emptyContext = {
+      version: 1,
+      history: [],
+    };
+
+    const response = await fetch(`${apiBase}/state/${encodeURIComponent(filename)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: JSON.stringify(emptyContext, null, 2) }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || `Failed to create conversation (${response.status})`);
+    }
+  }
+
+  function getNextConversationFilename() {
+    let number = 1;
+    while (conversationFiles.includes(`context.${number}.json`)) {
+      number += 1;
+    }
+    return `context.${number}.json`;
+  }
+
+  async function createConversation() {
+    try {
+      const filename = getNextConversationFilename();
+      await createConversationFile(filename);
+      conversationFiles = await fetchConversationFiles();
+      await openConversation(filename);
+    } catch (error) {
+      showError(`Could not create conversation: ${error.message || "Unknown error"}`);
+    }
+  }
+
+  async function openConversation(filename) {
+    if (!filename || filename === currentConversationFile) {
+      return;
+    }
+
+    currentConversationFile = filename;
+    localStorage.setItem("selectedConversation", filename);
+    renderConversationSidebar();
+    setChatHeaderForConversation(filename);
+    await restoreChatHistory(filename);
+  }
 
   function activateChatUI() {
     const start = document.getElementById("startScreen");
@@ -1314,6 +1470,30 @@
     }
   }
 
+  async function restoreBackendConfigDefaults() {
+    const confirmed = window.confirm("Restore backend config.json from config.default.json? This will overwrite your current backend config.");
+    if (!confirmed) return;
+
+    try {
+      setConfigStatus("Restoring defaults...");
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/config/restore-default`, {
+        method: "POST",
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to restore defaults (${response.status})`);
+      }
+
+      backendConfigCache = data.config || null;
+      await loadBackendConfig();
+      setConfigStatus("Default config restored successfully.");
+    } catch (error) {
+      setConfigStatus(error.message || "Failed to restore default config", true);
+    }
+  }
+
   function getApiBase() {
     return localStorage.getItem("apiBase") || "http://127.0.0.1:5000";
   }
@@ -1464,16 +1644,27 @@
     return escaped.replace(/\n/g, "<br>");
   }
 
-  async function fetchChatHistory() {
+  async function fetchChatHistory(filename = currentConversationFile) {
+    if (!filename) return [];
+
     const apiBase = getApiBase();
-    const response = await fetch(`${apiBase}/context`);
+    const response = await fetch(`${apiBase}/state/${encodeURIComponent(filename)}`);
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
       throw new Error(data.error || `Failed to load history (${response.status})`);
     }
 
-    const history = Array.isArray(data.history) ? data.history : [];
+    let parsed = {};
+    if (typeof data.content === "string") {
+      try {
+        parsed = JSON.parse(data.content);
+      } catch {
+        parsed = {};
+      }
+    }
+
+    const history = Array.isArray(parsed.history) ? parsed.history : [];
     return history
       .filter(
         (item) =>
@@ -1491,10 +1682,19 @@
     const shouldClear = window.confirm("Clear all chat history? This cannot be undone.");
     if (!shouldClear) return;
 
+    if (!currentConversationFile) {
+      showError("No active conversation selected.");
+      return;
+    }
+
     try {
       const apiBase = getApiBase();
-      const response = await fetch(`${apiBase}/context`, {
-        method: "DELETE",
+      const response = await fetch(`${apiBase}/state/${encodeURIComponent(currentConversationFile)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: JSON.stringify({ version: 1, history: [] }, null, 2),
+        }),
       });
 
       if (!response.ok) {
@@ -1514,10 +1714,10 @@
     chat.innerHTML += `<div class="msg ${msgClass}">${formatUserMessage(text)}</div>`;
   }
 
-  async function restoreChatHistory() {
+  async function restoreChatHistory(filename = currentConversationFile) {
     const chat = document.getElementById("chatMessages");
     chat.innerHTML = "";
-    const history = await fetchChatHistory();
+    const history = await fetchChatHistory(filename);
     for (const message of history) {
       const msgClass = message.role === "user" ? "user" : "ai";
       chat.innerHTML += `<div class="msg ${msgClass}">${formatUserMessage(message.text)}</div>`;
@@ -1546,10 +1746,15 @@
 
     try {
       const apiBase = getApiBase();
+      const args = ["-notts"];
+      if (currentConversationFile) {
+        args.push("-cf", currentConversationFile);
+      }
+
       const res = await fetch(`${apiBase}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, args: ["-notts"] }),
+        body: JSON.stringify({ text, args }),
       });
 
       const data = await res.json();
@@ -1557,7 +1762,7 @@
       if (!res.ok) {
         appendMessage("ai", `Error: ${data.error || "Request failed with status " + res.status}`);
       } else {
-        await restoreChatHistory();
+        await restoreChatHistory(currentConversationFile);
         playSound();
       }
     } catch (error) {
@@ -1644,10 +1849,6 @@
       }
     });
   }
-
-  restoreChatHistory().catch((error) => {
-    showError(`Error loading history: ${error.message || "Failed to connect to server"}`);
-  });
 
   function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
