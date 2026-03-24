@@ -913,9 +913,21 @@
       <h2><i class="fa fa-gear"></i> Settings</h2>
       <button class="close-btn" onclick="closeSettings()">×</button>
     </div>
-    <div class="setting-item">
-      <span><i class="fa fa-moon-o" aria-hidden="true"></i> Dark Mode</span>
+   <div class="setting-item">
+      <span><i class="fa fa-gear"></i> Dark Mode</span>
       <div class="toggle-switch" onclick="toggleDarkMode(event)"></div>
+    </div>
+    <div class="setting-item">
+      <label for="apiBaseInput">🔗 API Base</label>
+      <input id="apiBaseInput" type="text" placeholder="http://127.0.0.1:5000" />
+    </div>
+    <div class="setting-item">
+      <label for="apiPasswordInput">🔒 API Password</label>
+      <input id="apiPasswordInput" type="password" placeholder="Enter password" />
+    </div>
+    <div class="setting-item">
+      <span id="authStatus" class="setting-status">Not authenticated</span>
+      <button id="authActionBtn" class="settings-action-btn" onclick="handleAuthAction()">Login</button>
     </div>
     <div class="setting-item">
       <label for="apiBaseInput">🔗 API Base</label>
@@ -989,6 +1001,7 @@
   let currentBannerIndex = 0;
   let bannerLoopStarted = false;
   let cachedBannerConversations = [];
+  let isAuthenticated = false;
   const BANNER_PREFIX = "Drizzle AI ready to";
 
   function toggleSidebar() {
@@ -1066,7 +1079,7 @@
 
     try {
       const apiBase = getApiBase();
-      const response = await fetch(`${apiBase}/logs`);
+      const response = await authenticatedFetch(`${apiBase}/logs`);
       
       if (!response.ok) {
         throw new Error(`Failed to load logs (${response.status})`);
@@ -1163,9 +1176,8 @@
         const conversationSummary = summaryParts.join("\n") || "No messages yet";
 
         const apiBase = getApiBase();
-        const response = await fetch(`${apiBase}/chat`, {
+        const response = await authenticatedFetch(`${apiBase}/chat`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             text: `Create one short startup banner about this conversation. It should start exactly with 'Drizzle AI ready to' and add up to 5 words that reference the conversation topic or content. Output only the banner text, nothing else.\n\nConversation "${formatConversationName(filename)}":\n${conversationSummary}`,
             args: ["-notts", "--no-save"],
@@ -1243,15 +1255,14 @@
               const conversationSummary = summaryParts.join("\n") || "No messages yet";
 
               const apiBase = getApiBase();
-              const response = await fetch(`${apiBase}/chat`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  text: `Create one short startup banner about this conversation. It should start exactly with 'Drizzle AI ready to' and add up to 5 words that reference the conversation topic or content. Output only the banner text, nothing else.\n\nConversation "${formatConversationName(filename)}":\n${conversationSummary}`,
-                  args: ["-notts", "--no-save"],
-                }),
-              });
-              const data = await response.json().catch(() => ({}));
+               const response = await authenticatedFetch(`${apiBase}/chat`, {
+                 method: "POST",
+                 body: JSON.stringify({
+                   text: `Create one short startup banner about this conversation. It should start exactly with 'Drizzle AI ready to' and add up to 5 words that reference the conversation topic or content. Output only the banner text, nothing else.\n\nConversation "${formatConversationName(filename)}":\n${conversationSummary}`,
+                   args: ["-notts", "--no-save"],
+                 }),
+               });
+               const data = await response.json().catch(() => ({}));
 
               if (response.ok && data.reply) {
                 const banner = normalizeBannerText(data.reply, `about ${formatConversationName(filename)}`);
@@ -1283,16 +1294,15 @@
             if (lastAi && lastAi.text) summaryParts.push(`AI replied: ${lastAi.text.slice(0, 150)}`);
             const conversationSummary = summaryParts.join("\n") || "No messages yet";
 
-            const apiBase = getApiBase();
-            const response = await fetch(`${apiBase}/chat`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                text: `Create one short startup banner about this conversation. It should start exactly with 'Drizzle AI ready to' and add up to 5 words that reference the conversation topic or content. Output only the banner text, nothing else.\n\nConversation "${formatConversationName(filename)}":\n${conversationSummary}`,
-                args: ["-notts", "--no-save"],
-              }),
-            });
-            const data = await response.json().catch(() => ({}));
+           const apiBase = getApiBase();
+             const response = await authenticatedFetch(`${apiBase}/chat`, {
+               method: "POST",
+               body: JSON.stringify({
+                 text: `Create one short startup banner about this conversation. It should start exactly with 'Drizzle AI ready to' and add up to 5 words that reference the conversation topic or content. Output only the banner text, nothing else.\n\nConversation "${formatConversationName(filename)}":\n${conversationSummary}`,
+                 args: ["-notts", "--no-save"],
+               }),
+             });
+             const data = await response.json().catch(() => ({}));
 
             if (response.ok && data.reply) {
               const banner = normalizeBannerText(data.reply, `about ${formatConversationName(filename)}`);
@@ -1345,6 +1355,23 @@
       });
     }
 
+    const apiPasswordInput = document.getElementById("apiPasswordInput");
+    if (apiPasswordInput) {
+      const savedPassword = localStorage.getItem("apiPassword");
+      if (savedPassword) {
+        apiPasswordInput.value = savedPassword;
+      }
+      apiPasswordInput.addEventListener("change", function () {
+        const value = apiPasswordInput.value;
+        if (value) {
+          localStorage.setItem("apiPassword", value);
+        } else {
+          localStorage.removeItem("apiPassword");
+        }
+      });
+    }
+
+    await checkAndAuthenticate();
     updateSoundStatus();
     await initializeConversations();
     loadCachedBanners();
@@ -1485,7 +1512,7 @@
 
   async function fetchConversationFiles() {
     const apiBase = getApiBase();
-    const response = await fetch(`${apiBase}/state`);
+    const response = await authenticatedFetch(`${apiBase}/state`);
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
@@ -1519,9 +1546,8 @@
 
     try {
       const apiBase = getApiBase();
-      const response = await fetch(`${apiBase}/chat`, {
+      const response = await authenticatedFetch(`${apiBase}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: `Create a short conversation title (3 to 6 words) for this first user message. Reply with title only. Message: ${message}`,
           args: ["-notts", "--no-save"],
@@ -1569,9 +1595,8 @@
       history: [],
     };
 
-    const response = await fetch(`${apiBase}/state/${encodeURIComponent(filename)}`, {
+    const response = await authenticatedFetch(`${apiBase}/state/${encodeURIComponent(filename)}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: JSON.stringify(emptyContext, null, 2) }),
     });
     const data = await response.json().catch(() => ({}));
@@ -1823,7 +1848,7 @@
     try {
       setConfigStatus("Loading config...");
       const apiBase = getApiBase();
-      const response = await fetch(`${apiBase}/config`);
+      const response = await authenticatedFetch(`${apiBase}/config`);
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
@@ -1843,9 +1868,8 @@
       const parsed = readConfigFormValues();
       setConfigStatus("Saving config...");
       const apiBase = getApiBase();
-      const response = await fetch(`${apiBase}/config`, {
+      const response = await authenticatedFetch(`${apiBase}/config`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parsed),
       });
       const data = await response.json().catch(() => ({}));
@@ -1868,7 +1892,7 @@
     try {
       setConfigStatus("Restoring defaults...");
       const apiBase = getApiBase();
-      const response = await fetch(`${apiBase}/config/restore-default`, {
+      const response = await authenticatedFetch(`${apiBase}/config/restore-default`, {
         method: "POST",
       });
       const data = await response.json().catch(() => ({}));
@@ -1889,6 +1913,142 @@
     return localStorage.getItem("apiBase") || "http://127.0.0.1:5000";
   }
 
+  function getApiPassword() {
+    return localStorage.getItem("apiPassword") || "";
+  }
+
+  async function checkAndAuthenticate() {
+    const password = getApiPassword();
+    if (!password) {
+      updateAuthStatus(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${getApiBase()}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password }),
+      });
+
+      if (response.ok) {
+        isAuthenticated = true;
+        updateAuthStatus(true);
+      } else {
+        isAuthenticated = false;
+        updateAuthStatus(false);
+      }
+    } catch (error) {
+      console.error("Authentication check failed:", error);
+      isAuthenticated = false;
+      updateAuthStatus(false);
+    }
+  }
+
+  async function handleAuthAction() {
+    const password = getApiPassword();
+    if (!password) {
+      showError("Please enter a password first.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${getApiBase()}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password }),
+      });
+
+      if (response.ok) {
+        isAuthenticated = true;
+        updateAuthStatus(true);
+        showError("Successfully logged in!");
+      } else {
+        const data = await response.json().catch(() => ({}));
+        showError(data.error || "Login failed. Invalid password.");
+        isAuthenticated = false;
+        updateAuthStatus(false);
+      }
+    } catch (error) {
+      showError(`Login failed: ${error.message}`);
+      isAuthenticated = false;
+      updateAuthStatus(false);
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await fetch(`${getApiBase()}/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+      isAuthenticated = false;
+      updateAuthStatus(false);
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  }
+
+  function updateAuthStatus(authenticated) {
+    const statusEl = document.getElementById("authStatus");
+    const actionBtn = document.getElementById("authActionBtn");
+    if (!statusEl || !actionBtn) return;
+
+    if (authenticated) {
+      statusEl.textContent = "Authenticated";
+      actionBtn.textContent = "Logout";
+      actionBtn.onclick = handleLogout;
+    } else {
+      statusEl.textContent = "Not authenticated";
+      actionBtn.textContent = "Login";
+      actionBtn.onclick = handleAuthAction;
+    }
+  }
+
+  async function authenticatedFetch(url, options = {}) {
+    const defaultOptions = {
+      credentials: "include",
+      headers: { ...options.headers },
+    };
+
+    const mergedOptions = {
+      ...defaultOptions,
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...defaultOptions.headers,
+        ...options.headers,
+      },
+    };
+
+    try {
+      const response = await fetch(url, mergedOptions);
+
+      if (response.status === 401) {
+        const savedPassword = getApiPassword();
+        if (savedPassword) {
+          await fetch(`${getApiBase()}/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ password: savedPassword }),
+          });
+          return fetch(url, mergedOptions);
+        }
+        throw new Error("Authentication required");
+      }
+
+      return response;
+    } catch (error) {
+      if (error.message === "Authentication required") {
+        showError("Authentication required. Please enter your password in settings.");
+      }
+      throw error;
+    }
+  }
+
   async function loadModels() {
     const apiBase = getApiBase();
     const modelMenu = document.getElementById("modelMenu");
@@ -1899,7 +2059,7 @@
     }
     
     try {
-      const response = await fetch(`${apiBase}/models`);
+      const response = await authenticatedFetch(`${apiBase}/models`);
       const data = await response.json();
       
       if (data.models && Array.isArray(data.models)) {
@@ -1935,7 +2095,7 @@
     }
     
     try {
-      const response = await fetch(`${apiBase}/config`);
+      const response = await authenticatedFetch(`${apiBase}/config`);
       const config = await response.json();
       
       if (config.model && config.model.model) {
@@ -2039,7 +2199,7 @@
     if (!filename) return [];
 
     const apiBase = getApiBase();
-    const response = await fetch(`${apiBase}/state/${encodeURIComponent(filename)}`);
+    const response = await authenticatedFetch(`${apiBase}/state/${encodeURIComponent(filename)}`);
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
@@ -2080,9 +2240,8 @@
 
     try {
       const apiBase = getApiBase();
-      const response = await fetch(`${apiBase}/state/${encodeURIComponent(currentConversationFile)}`, {
+      const response = await authenticatedFetch(`${apiBase}/state/${encodeURIComponent(currentConversationFile)}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content: JSON.stringify({ version: 1, history: [] }, null, 2),
         }),
@@ -2156,9 +2315,8 @@
         args.push("-cf", currentConversationFile);
       }
 
-      const res = await fetch(`${apiBase}/chat`, {
+      const res = await authenticatedFetch(`${apiBase}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, args }),
       });
 
@@ -2241,9 +2399,8 @@
         
         try {
           const apiBase = getApiBase();
-          await fetch(`${apiBase}/config`, {
+          await authenticatedFetch(`${apiBase}/config`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ model: { model: selectedModel } }),
           });
         } catch (error) {
