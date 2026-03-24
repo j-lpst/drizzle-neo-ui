@@ -126,6 +126,31 @@
     cursor: pointer;
     border-top: 1px solid rgba(255,255,255,0.2);
     border-bottom: 1px solid rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .conversation-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+
+  .conversation-rename {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    opacity: 0.75;
+    font-size: 12px;
+    padding: 0;
+  }
+
+  .conversation-rename:hover {
+    opacity: 1;
   }
 
   .conversation.active {
@@ -956,6 +981,7 @@
   let configFieldTypes = {};
   let currentConversationFile = "context.json";
   let conversationFiles = [];
+  let conversationTitles = {};
 
   function toggleSidebar() {
     const sidebar = document.getElementById("sidebar");
@@ -1141,10 +1167,68 @@
   }
 
   function formatConversationName(filename) {
+    const customName = conversationTitles[filename];
+    if (typeof customName === "string" && customName.trim()) {
+      return customName.trim();
+    }
     if (filename === "context.json") return "Main Conversation";
     const match = filename.match(/^context\.(\d+)\.json$/i);
     if (match) return `Conversation ${match[1]}`;
     return filename;
+  }
+
+  function loadConversationTitles() {
+    try {
+      const raw = localStorage.getItem("conversationTitles");
+      const parsed = raw ? JSON.parse(raw) : {};
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        conversationTitles = parsed;
+      } else {
+        conversationTitles = {};
+      }
+    } catch {
+      conversationTitles = {};
+    }
+  }
+
+  function saveConversationTitles() {
+    localStorage.setItem("conversationTitles", JSON.stringify(conversationTitles));
+  }
+
+  function hasCustomConversationTitle(filename) {
+    return typeof conversationTitles[filename] === "string" && conversationTitles[filename].trim().length > 0;
+  }
+
+  function normalizeConversationTitle(title, fallback) {
+    const normalized = (title || "")
+      .replace(/\s+/g, " ")
+      .replace(/^['"`\-:\s]+|['"`\-:\s]+$/g, "")
+      .trim();
+
+    if (!normalized) {
+      return fallback;
+    }
+
+    return normalized.length > 60 ? `${normalized.slice(0, 57)}...` : normalized;
+  }
+
+  function renameConversation(filename) {
+    const currentName = formatConversationName(filename);
+    const input = window.prompt("Rename conversation:", currentName);
+    if (input === null) return;
+
+    const trimmed = input.trim();
+    if (!trimmed) {
+      delete conversationTitles[filename];
+    } else {
+      conversationTitles[filename] = normalizeConversationTitle(trimmed, currentName);
+    }
+
+    saveConversationTitles();
+    renderConversationSidebar();
+    if (filename === currentConversationFile) {
+      setChatHeaderForConversation(filename);
+    }
   }
 
   function setChatHeaderForConversation(filename) {
@@ -1173,8 +1257,24 @@
       if (filename === currentConversationFile) {
         item.classList.add("active");
       }
-      item.textContent = formatConversationName(filename);
       item.addEventListener("click", () => openConversation(filename));
+
+      const title = document.createElement("span");
+      title.className = "conversation-title";
+      title.textContent = formatConversationName(filename);
+
+      const renameBtn = document.createElement("button");
+      renameBtn.type = "button";
+      renameBtn.className = "conversation-rename";
+      renameBtn.title = "Rename conversation";
+      renameBtn.innerHTML = '<i class="fa fa-pencil" aria-hidden="true"></i>';
+      renameBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        renameConversation(filename);
+      });
+
+      item.appendChild(title);
+      item.appendChild(renameBtn);
       container.appendChild(item);
     }
   }
@@ -1193,6 +1293,7 @@
   }
 
   async function initializeConversations() {
+    loadConversationTitles();
     conversationFiles = await fetchConversationFiles();
 
     if (!conversationFiles.includes("context.json")) {
@@ -1206,6 +1307,49 @@
     renderConversationSidebar();
     setChatHeaderForConversation(currentConversationFile);
     await restoreChatHistory(currentConversationFile);
+  }
+
+  async function generateConversationTitleFromFirstMessage(message, filename) {
+    const fallback = normalizeConversationTitle(message, formatConversationName(filename));
+
+    try {
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: `Create a short conversation title (3 to 6 words) for this first user message. Reply with title only. Message: ${message}`,
+          args: ["-notts", "--no-save"],
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        return fallback;
+      }
+
+      return normalizeConversationTitle(data.reply || "", fallback);
+    } catch {
+      return fallback;
+    }
+  }
+
+  async function maybeAssignAutoConversationTitle(firstMessage, filename) {
+    if (!filename || hasCustomConversationTitle(filename)) {
+      return;
+    }
+
+    const title = await generateConversationTitleFromFirstMessage(firstMessage, filename);
+    if (!title) {
+      return;
+    }
+
+    conversationTitles[filename] = title;
+    saveConversationTitles();
+    renderConversationSidebar();
+    if (filename === currentConversationFile) {
+      setChatHeaderForConversation(filename);
+    }
   }
 
   async function createConversationFile(filename) {
@@ -1731,6 +1875,8 @@
     const chat = document.getElementById("chatMessages");
     const text = input.value.trim();
     if (!text) return;
+    const activeConversationAtSend = currentConversationFile;
+    const shouldAutoName = activeConversationAtSend && !hasCustomConversationTitle(activeConversationAtSend);
 
     appendMessage("user", text);
     input.value = "";
@@ -1762,7 +1908,10 @@
       if (!res.ok) {
         appendMessage("ai", `Error: ${data.error || "Request failed with status " + res.status}`);
       } else {
-        await restoreChatHistory(currentConversationFile);
+        await restoreChatHistory(activeConversationAtSend);
+        if (shouldAutoName) {
+          maybeAssignAutoConversationTitle(text, activeConversationAtSend);
+        }
         playSound();
       }
     } catch (error) {
