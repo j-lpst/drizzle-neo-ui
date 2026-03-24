@@ -21,17 +21,17 @@
 
   /* Dark Mode */
   body.dark-mode {
-    background: #252526;
+    background: rgb(26, 26, 30);
   }
 
   body.dark-mode #chatContainer {
-    background: #252526;
-    color: #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
   }
 
   body.dark-mode #chatHeader {
     border-bottom-color: #333;
-    color: #fff;
+    color: rgb(227, 227, 229);
   }
 
   body.dark-mode #chatInputArea {
@@ -39,21 +39,27 @@
   }
 
   body.dark-mode #chatInput {
-  background: #fff;
-  color: #000;
+  background: rgb(34, 35, 39);
+  color: rgb(227, 227, 229);
   border-color: #333;
   }
 
+  body.dark-mode #chatInput:focus {
+    outline: none;
+    border-color: #578676;
+    box-shadow: 0 0 0 2px #5786764d;
+  }
+
   body.dark-mode .msg.user {
-    background: #1a1a1a;
-    color: #fff;
-    border: 2px solid #fff;
+    background: rgb(34, 35, 39);
+    color: rgb(227, 227, 229);
+    border: 1px solid #333;
   }
 
   body.dark-mode .modal-content {
-    background: #000;
-    color: #fff;
-    border: 2px solid #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
+    border: 1px solid #333;
   }
 
   body.dark-mode .close-btn {
@@ -61,7 +67,7 @@
   }
 
   body.dark-mode .close-btn:hover {
-    color: #fff;
+    color: rgb(227, 227, 229);
   }
 
   body.dark-mode .setting-item {
@@ -69,8 +75,8 @@
   }
 
   body.dark-mode #sidebarToggle {
-    background: #000;
-    color: #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
   }
 
   /* Sidebar */
@@ -96,6 +102,7 @@
   }
 
   #sidebar header {
+    height: 50px;
     padding: 16px;
     font-weight: bold;
     white-space: nowrap;
@@ -109,6 +116,7 @@
   .conversation {
     padding: 12px 16px;
     cursor: pointer;
+    border-top: 1px solid rgba(255,255,255,0.2);
     border-bottom: 1px solid rgba(255,255,255,0.2);
   }
 
@@ -119,6 +127,8 @@
   #logs {
     padding: 12px 16px;
     cursor: pointer;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
   }
 
    #logs:hover {
@@ -129,6 +139,8 @@
     padding: 12px 16px;
     cursor: pointer;
     margin-top: auto;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
   }
 
   #logs:hover,
@@ -144,7 +156,7 @@
     width: 32px;
     height: 32px;
     background: white;
-    color: black;
+    color: #578676;
     border-radius: 0 6px 6px 0;
     display: flex;
     align-items: center;
@@ -161,6 +173,86 @@
   }
 
   /* Main chat */
+
+  #startScreen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    transition: opacity 0.3s ease;
+  }
+
+  #startTitle {
+    font-size: 28px;
+    font-weight: 500;
+    color: #578676;
+    font-family: "Courier New", Courier, monospace;
+    letter-spacing: 0.5px;
+    text-shadow:  0 0 0 10px #5786764d;
+  }
+
+  .start-input-wrapper {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    max-width: 600px;
+    align-items: flex-end;
+  }
+
+  /* reuse chat input styles */
+  .chat-input-clone {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    resize: none;
+  }
+
+  /* reuse button styles */
+  .send-btn-clone {
+    padding: 10px 16px;
+    background: #578676;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  /* inherit styles from #chatInput */
+  #startInput {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    resize: none;
+  }
+
+  #startInput:focus {
+    outline: none;
+    border-color: #578676;
+    box-shadow: 0 0 0 2px #5786764d;
+  }
+
+  body.dark-mode #startInput {
+    background: rgb(34, 35, 39);
+    color: rgb(227, 227, 229);
+    border-color: #333;
+  }
+
+  body.dark-mode #startInput:focus {
+    outline: none;
+    border-color: #578676;
+    box-shadow: 0 0 0 2px #5786764d;
+  }
+
   #chatContainer {
     flex: 1;
     display: flex;
@@ -184,6 +276,11 @@
     overflow-y: auto;
   }
 
+  #chatMessages.hidden,
+  #chatInputArea.hidden {
+    display: none;
+  }
+
   .msg {
     max-width: 70%;
     margin-bottom: 12px;
@@ -194,7 +291,7 @@
   }
 
   .user {
-    background: #e0e0e0;
+    background: rgb(244, 244, 244);
     margin-left: auto;
   }
 
@@ -222,6 +319,12 @@
     font-size: 13px;
   }
 
+  #modelMenu:focus {
+    outline: none;
+    border-color: #578676;
+    box-shadow: 0 0 0 2px #5786764d;
+  }
+
   #chatInput {
     flex: 1;
     padding: 10px;
@@ -232,6 +335,12 @@
     font-size: 14px;
     line-height: 1.4;
     overflow-y: auto; /* scroll once max height reached */
+  }
+
+  #chatInput:focus {
+    outline: none;
+    border-color: #578676;
+    box-shadow: 0 0 0 2px #5786764d;
   }
 
 
@@ -248,8 +357,13 @@
   .sidebar-title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 1px;
     white-space: nowrap;
+  }
+
+  .title-text {
+    font-size: 20px;
+    font-weight: bold;
   }
 
   /* Small sidebar logo */
@@ -386,8 +500,8 @@
   }
 
   body.dark-mode .setting-item input {
-    background: #111;
-    color: #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
     border-color: #333;
   }
 
@@ -396,9 +510,15 @@
   }
 
   body.dark-mode #modelMenu {
-    background: #111;
-    color: #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
     border-color: #333;
+  }
+
+  body.dark-mode #modelMenu:focus {
+    outline: none;
+    border-color: #578676;
+    box-shadow: 0 0 0 2px #5786764d;
   }
 
   @media (max-width: 720px) {
@@ -514,9 +634,9 @@
   }
 
   body.dark-mode .config-modal-content {
-    background: #000;
-    color: #fff;
-    border: 2px solid #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
+    border: 1px solid #333;
   }
 
   body.dark-mode .config-hint,
@@ -532,8 +652,8 @@
   body.dark-mode .config-field input,
   body.dark-mode .config-field textarea,
   body.dark-mode .config-field select {
-    background: #111;
-    color: #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
     border-color: #333;
   }
 
@@ -611,7 +731,7 @@
   }
 
   .logs-footer button.secondary {
-    background: #6c757d;
+    background: #578676;
     color: #fff;
   }
 
@@ -629,14 +749,51 @@
   }
 
   body.dark-mode .logs-modal-content {
-    background: #000;
-    color: #fff;
-    border: 2px solid #fff;
+    background: rgb(26, 26, 30);
+    color: rgb(227, 227, 229);
+    border: 1px solid #333;
   }
 
   body.dark-mode .logs-content {
-    background: #1e1e1e;
+    background: #111;
     color: #d4d4d4;
+  }
+
+  #errorModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5); /* dark overlay */
+    z-index: 200;           /* above everything */
+    align-items: center;
+    justify-content: center;
+  }
+
+  #errorModal.open {
+    display: flex;
+  }
+
+  #errorMessage {
+    color: #c62828;
+    margin-top: 10px;
+  }
+
+  #cursor {
+    display: inline-block;
+    width: 1ch;
+    color: #578676;
+    font-weight: bold;
+  }
+
+  .blink {
+    animation: blinkCursor 0.5s steps(1) infinite;
+  }
+
+  @keyframes blinkCursor {
+    50% { opacity: 0; }
   }
 
   </style>
@@ -672,6 +829,23 @@
 <!-- Main Chat -->
 <div id="chatContainer">
   <div id="chatHeader">Plant Care Help</div>
+
+  <div id="startScreen">
+    <h1 id="startTitle">
+      <span id="bannerText">Drizzle AI ready...</span><span id="cursor">_</span>
+    </h1>
+
+    <div class="start-input-wrapper">
+      <textarea
+        id="startInput"
+        class="chat-input-clone"
+        placeholder="Ask DrizzleChat..."
+        rows="1"
+      ></textarea>
+
+      <button class="send-btn-clone" onclick="sendFromStart()">Send</button>
+    </div>
+  </div>
 
   <div id="chatMessages"></div>
 
@@ -750,6 +924,16 @@
     </div>
   </div>
 
+  <div id="errorModal" onclick="closeErrorOnOutside(event)">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Error</h2>
+        <button class="close-btn" onclick="closeError()">×</button>
+      </div>
+      <div id="errorMessage"></div>
+    </div>
+  </div>
+
 <script>
   let backendConfigCache = null;
   let configFieldTypes = {};
@@ -808,6 +992,21 @@
     }
   }
 
+  function showError(message) {
+  document.getElementById("errorMessage").textContent = message;
+  document.getElementById("errorModal").classList.add("open");
+  }
+
+  function closeError() {
+    document.getElementById("errorModal").classList.remove("open");
+  }
+
+  function closeErrorOnOutside(event) {
+    if (event.target.id === "errorModal") {
+      closeError();
+    }
+  }
+
   async function loadLogs() {
     const logsContent = document.getElementById("logsContent");
     if (!logsContent) return;
@@ -843,11 +1042,46 @@
 
   // Restore dark mode preference on page load
   window.addEventListener("DOMContentLoaded", async function() {
+    document.getElementById("chatMessages").classList.add("hidden");
+    document.getElementById("chatInputArea").classList.add("hidden");
     const darkMode = localStorage.getItem("darkMode");
     if (darkMode === "enabled") {
       document.body.classList.add("dark-mode");
       document.querySelector(".toggle-switch").classList.add("active");
     }
+
+  const startTitle = document.getElementById("startTitle");
+  if (startTitle) {
+    let bannerText = document.getElementById("bannerText").textContent.trim();
+    let fetchedBannerText = null;
+
+    const fetchBannerText = async () => {
+      try {
+        const apiBase = getApiBase();
+        const response = await fetch(`${apiBase}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: "Continue this sentence: \"Drizzle AI ready to...\".\nIt should be related to the current conversation.\nIt should be limited to 2-3 extra words.\nIt should always begin with \"Drizzle AI ready\". It should not be anything too generic like \"Drizzle AI ready to chat\" or \"Drizzle AI ready to hydrate!\", it should uniquely relate to the conversation",
+            args: ["-notts","--no-save"]
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.reply) {
+          fetchedBannerText = data.reply;
+        }
+      } catch (error) {
+        console.error("Failed to generate welcome message:", error);
+      }
+    };
+
+    // Start fetch immediately in background (fire and forget)
+    fetchBannerText();
+
+    typewriterLoopWithFetch(bannerText, () => fetchedBannerText);
+  }
 
     const apiBaseInput = document.getElementById("apiBaseInput");
     if (apiBaseInput) {
@@ -867,6 +1101,28 @@
     await loadModels();
     restoreModelSelection();
   });
+
+  function activateChatUI() {
+    const start = document.getElementById("startScreen");
+    start.style.opacity = "0";
+
+    setTimeout(() => {
+      start.style.display = "none";
+      document.getElementById("chatMessages").classList.remove("hidden");
+      document.getElementById("chatInputArea").classList.remove("hidden");
+    }, 300);
+  }
+
+  function sendFromStart() {
+    const input = document.getElementById("startInput");
+    const text = input.value.trim();
+    if (!text) return;
+
+    activateChatUI();
+
+    document.getElementById("chatInput").value = text;
+    sendChat();
+  }
 
   function setConfigStatus(message, isError = false) {
     const status = document.getElementById("configEditorStatus");
@@ -1339,6 +1595,32 @@
     }
   });
 
+  const startInput = document.getElementById("startInput");
+
+    if (startInput) {
+      startInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendFromStart();
+        }
+      });
+
+      startInput.addEventListener("input", function () {
+        this.style.height = "auto";
+
+        const lineHeight = parseFloat(getComputedStyle(this).lineHeight);
+        const maxHeight = lineHeight * 5 + 20;
+
+        if (this.scrollHeight > maxHeight) {
+          this.style.height = maxHeight + "px";
+          this.style.overflowY = "auto";
+        } else {
+          this.style.height = this.scrollHeight + "px";
+          this.style.overflowY = "hidden";
+        }
+      });
+    }
+
   const modelMenu = document.getElementById("modelMenu");
   if (modelMenu) {
     modelMenu.addEventListener("change", async function () {
@@ -1364,8 +1646,55 @@
   }
 
   restoreChatHistory().catch((error) => {
-    appendMessage("ai", `Error loading history: ${error.message || "Failed to connect to server"}`);
+    showError(`Error loading history: ${error.message || "Failed to connect to server"}`);
   });
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function typewriterLoopWithFetch(defaultText, getFetchedText) {
+    const typingSpeed = 45;
+    const deletingSpeed = 25;
+
+    const textEl = document.getElementById("bannerText");
+    const cursor = document.getElementById("cursor");
+
+    let currentText = defaultText;
+
+    while (true) {
+      const fetchedText = getFetchedText();
+      const textToUse = fetchedText || currentText;
+
+      // ---- TYPE ----
+      for (let i = 0; i <= textToUse.length; i++) {
+        textEl.textContent = textToUse.slice(0, i);
+        await sleep(typingSpeed);
+      }
+
+      // ---- BLINK 3 TIMES ----
+      for (let i = 0; i < 3; i++) {
+        cursor.style.opacity = "0";
+        await sleep(250);
+        cursor.style.opacity = "1";
+        await sleep(250);
+      }
+
+      // ---- DELETE ----
+      for (let i = textToUse.length; i >= 0; i--) {
+        textEl.textContent = textToUse.slice(0, i);
+        await sleep(deletingSpeed);
+      }
+
+      // Update current text if we got a new one
+      const newFetchedText = getFetchedText();
+      if (newFetchedText) {
+        currentText = newFetchedText;
+      }
+
+      await sleep(400);
+    }
+  }
 </script>
 
 </body>
