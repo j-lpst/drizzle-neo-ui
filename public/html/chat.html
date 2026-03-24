@@ -234,6 +234,9 @@
     font-family: "Courier New", Courier, monospace;
     letter-spacing: 0.5px;
     text-shadow:  0 0 0 10px #5786764d;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
   }
 
   .start-input-wrapper {
@@ -982,6 +985,11 @@
   let currentConversationFile = "context.json";
   let conversationFiles = [];
   let conversationTitles = {};
+  let latestBannerTexts = [];
+  let currentBannerIndex = 0;
+  let bannerLoopStarted = false;
+  let cachedBannerConversations = [];
+  const BANNER_PREFIX = "Drizzle AI ready to";
 
   function toggleSidebar() {
     const sidebar = document.getElementById("sidebar");
@@ -1085,48 +1093,243 @@
     }
   }
 
-  // Restore dark mode preference on page load
-  window.addEventListener("DOMContentLoaded", async function() {
-    document.getElementById("chatMessages").classList.add("hidden");
-    document.getElementById("chatInputArea").classList.add("hidden");
-    const darkMode = localStorage.getItem("darkMode");
-    if (darkMode === "enabled") {
-      document.body.classList.add("dark-mode");
-      document.querySelector(".toggle-switch").classList.add("active");
+  function getNextBanner() {
+    if (!latestBannerTexts.length) return null;
+    const banner = latestBannerTexts[currentBannerIndex];
+    currentBannerIndex = (currentBannerIndex + 1) % latestBannerTexts.length;
+    return banner;
+  }
+
+  function ensureBannerLoopRunning() {
+    if (bannerLoopStarted) return;
+    const bannerTextEl = document.getElementById("bannerText");
+    if (!bannerTextEl) return;
+
+    bannerLoopStarted = true;
+    const defaultText = bannerTextEl.textContent.trim() || "Drizzle AI ready...";
+    typewriterLoopWithFetch(defaultText, getNextBanner);
+  }
+
+  function setStartScreenVisible(visible) {
+    const startScreen = document.getElementById("startScreen");
+    const messages = document.getElementById("chatMessages");
+    const inputArea = document.getElementById("chatInputArea");
+    if (!startScreen || !messages || !inputArea) return;
+
+    if (visible) {
+      startScreen.style.display = "flex";
+      startScreen.style.opacity = "1";
+      messages.classList.add("hidden");
+      inputArea.classList.add("hidden");
+      ensureBannerLoopRunning();
+    } else {
+      startScreen.style.display = "none";
+      startScreen.style.opacity = "1";
+      messages.classList.remove("hidden");
+      inputArea.classList.remove("hidden");
+    }
+  }
+
+  function normalizeBannerText(rawText, fallbackSuffix = "continue this chat") {
+    const normalized = String(rawText || "").replace(/\s+/g, " ").trim();
+    let suffix = "";
+
+    if (normalized.toLowerCase().startsWith(BANNER_PREFIX.toLowerCase())) {
+      suffix = normalized.slice(BANNER_PREFIX.length).trim();
+    } else {
+      suffix = normalized;
     }
 
-  const startTitle = document.getElementById("startTitle");
-  if (startTitle) {
-    let bannerText = document.getElementById("bannerText").textContent.trim();
-    let fetchedBannerText = null;
+    if (!suffix) {
+      suffix = fallbackSuffix;
+    }
 
-    const fetchBannerText = async () => {
+    const words = suffix.split(/\s+/).filter(Boolean).slice(0, 5);
+    const safeSuffix = words.join(" ").trim() || fallbackSuffix;
+    return `${BANNER_PREFIX} ${safeSuffix}`;
+  }
+
+  async function generateBannerFromAllConversations() {
+    const banners = [];
+
+    for (const filename of conversationFiles) {
       try {
+        const history = await fetchChatHistory(filename);
+        const lastUser = [...history].reverse().find((m) => m.role === "user");
+        const lastAi = [...history].reverse().find((m) => m.role === "ai");
+        const summaryParts = [];
+        if (lastUser && lastUser.text) summaryParts.push(`User asked: ${lastUser.text.slice(0, 150)}`);
+        if (lastAi && lastAi.text) summaryParts.push(`AI replied: ${lastAi.text.slice(0, 150)}`);
+        const conversationSummary = summaryParts.join("\n") || "No messages yet";
+
         const apiBase = getApiBase();
         const response = await fetch(`${apiBase}/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            text: "Continue this sentence: \"Drizzle AI ready to...\".\nIt should be related to the current conversation.\nIt should be limited to 2-3 extra words.\nIt should always begin with \"Drizzle AI ready\". It should not be anything too generic like \"Drizzle AI ready to chat\" or \"Drizzle AI ready to hydrate!\", it should uniquely relate to the conversation",
-            args: ["-notts","--no-save"]
+            text: `Create one short startup banner about this conversation. It should start exactly with 'Drizzle AI ready to' and add up to 5 words that reference the conversation topic or content. Output only the banner text, nothing else.\n\nConversation "${formatConversationName(filename)}":\n${conversationSummary}`,
+            args: ["-notts", "--no-save"],
           }),
         });
-
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
 
         if (response.ok && data.reply) {
-          fetchedBannerText = data.reply;
+          const banner = normalizeBannerText(data.reply, `about ${formatConversationName(filename)}`);
+          banners.push(banner);
+        } else {
+          banners.push(normalizeBannerText("", `about ${formatConversationName(filename)}`));
         }
       } catch (error) {
-        console.error("Failed to generate welcome message:", error);
+        console.error(`Error generating banner for ${filename}:`, error);
+        banners.push(normalizeBannerText("", `about ${formatConversationName(filename)}`));
       }
-    };
+    }
 
-    // Start fetch immediately in background (fire and forget)
-    fetchBannerText();
+    if (banners.length === 0) {
+      return ["Drizzle AI ready to hydrate you with knowledge"];
+    }
 
-    typewriterLoopWithFetch(bannerText, () => fetchedBannerText);
+    return banners;
   }
+
+  function loadCachedBanners() {
+    try {
+      const cached = localStorage.getItem("cachedBanners");
+      const cached_convs = localStorage.getItem("cachedBannerConversations");
+      if (cached && cached_convs) {
+        latestBannerTexts = JSON.parse(cached);
+        cachedBannerConversations = JSON.parse(cached_convs);
+        currentBannerIndex = 0;
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to load cached banners:", e);
+    }
+    return false;
+  }
+
+  function saveCachedBanners() {
+    try {
+      localStorage.setItem("cachedBanners", JSON.stringify(latestBannerTexts));
+      localStorage.setItem("cachedBannerConversations", JSON.stringify(conversationFiles));
+    } catch (e) {
+      console.error("Failed to save cached banners:", e);
+    }
+  }
+
+  async function refreshBannerFromAllConversations() {
+    currentBannerIndex = 0;
+
+    try {
+      // Check if we have cached banners and if conversation list hasn't changed much
+      if (loadCachedBanners()) {
+        // Check if any new conversations were added
+        const newConversations = conversationFiles.filter(
+          (f) => !cachedBannerConversations.includes(f)
+        );
+
+        if (newConversations.length > 0) {
+          // Generate banners only for new conversations
+          console.log("Found new conversations, generating banners for them:", newConversations);
+          const newBanners = [];
+          for (const filename of newConversations) {
+            try {
+              const history = await fetchChatHistory(filename);
+              const lastUser = [...history].reverse().find((m) => m.role === "user");
+              const lastAi = [...history].reverse().find((m) => m.role === "ai");
+              const summaryParts = [];
+              if (lastUser && lastUser.text) summaryParts.push(`User asked: ${lastUser.text.slice(0, 150)}`);
+              if (lastAi && lastAi.text) summaryParts.push(`AI replied: ${lastAi.text.slice(0, 150)}`);
+              const conversationSummary = summaryParts.join("\n") || "No messages yet";
+
+              const apiBase = getApiBase();
+              const response = await fetch(`${apiBase}/chat`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  text: `Create one short startup banner about this conversation. It should start exactly with 'Drizzle AI ready to' and add up to 5 words that reference the conversation topic or content. Output only the banner text, nothing else.\n\nConversation "${formatConversationName(filename)}":\n${conversationSummary}`,
+                  args: ["-notts", "--no-save"],
+                }),
+              });
+              const data = await response.json().catch(() => ({}));
+
+              if (response.ok && data.reply) {
+                const banner = normalizeBannerText(data.reply, `about ${formatConversationName(filename)}`);
+                newBanners.push(banner);
+              } else {
+                newBanners.push(normalizeBannerText("", `about ${formatConversationName(filename)}`));
+              }
+            } catch (error) {
+              console.error(`Error generating banner for ${filename}:`, error);
+              newBanners.push(normalizeBannerText("", `about ${formatConversationName(filename)}`));
+            }
+          }
+
+          // Combine existing banners with new ones
+          latestBannerTexts = [...latestBannerTexts, ...newBanners];
+          cachedBannerConversations = conversationFiles;
+          saveCachedBanners();
+        }
+      } else {
+        // No cached banners, generate all
+        const banners = [];
+        for (const filename of conversationFiles) {
+          try {
+            const history = await fetchChatHistory(filename);
+            const lastUser = [...history].reverse().find((m) => m.role === "user");
+            const lastAi = [...history].reverse().find((m) => m.role === "ai");
+            const summaryParts = [];
+            if (lastUser && lastUser.text) summaryParts.push(`User asked: ${lastUser.text.slice(0, 150)}`);
+            if (lastAi && lastAi.text) summaryParts.push(`AI replied: ${lastAi.text.slice(0, 150)}`);
+            const conversationSummary = summaryParts.join("\n") || "No messages yet";
+
+            const apiBase = getApiBase();
+            const response = await fetch(`${apiBase}/chat`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                text: `Create one short startup banner about this conversation. It should start exactly with 'Drizzle AI ready to' and add up to 5 words that reference the conversation topic or content. Output only the banner text, nothing else.\n\nConversation "${formatConversationName(filename)}":\n${conversationSummary}`,
+                args: ["-notts", "--no-save"],
+              }),
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (response.ok && data.reply) {
+              const banner = normalizeBannerText(data.reply, `about ${formatConversationName(filename)}`);
+              banners.push(banner);
+            } else {
+              banners.push(normalizeBannerText("", `about ${formatConversationName(filename)}`));
+            }
+          } catch (error) {
+            console.error(`Error generating banner for ${filename}:`, error);
+            banners.push(normalizeBannerText("", `about ${formatConversationName(filename)}`));
+          }
+        }
+
+        if (banners.length === 0) {
+          latestBannerTexts = ["Drizzle AI ready to hydrate you with knowledge"];
+        } else {
+          latestBannerTexts = banners;
+        }
+        cachedBannerConversations = conversationFiles;
+        saveCachedBanners();
+      }
+    } catch (error) {
+      console.error("Failed to generate banners from conversations:", error);
+      if (!latestBannerTexts.length) {
+        latestBannerTexts = ["Drizzle AI ready to chat"];
+      }
+    }
+  }
+
+  // Restore dark mode preference on page load
+  window.addEventListener("DOMContentLoaded", async function() {
+    setStartScreenVisible(false);
+    const darkMode = localStorage.getItem("darkMode");
+    if (darkMode === "enabled") {
+      document.body.classList.add("dark-mode");
+      document.querySelector(".toggle-switch").classList.add("active");
+    }
 
     const apiBaseInput = document.getElementById("apiBaseInput");
     if (apiBaseInput) {
@@ -1144,6 +1347,7 @@
 
     updateSoundStatus();
     await initializeConversations();
+    loadCachedBanners();
     await loadModels();
     restoreModelSelection();
   });
@@ -1307,6 +1511,7 @@
     renderConversationSidebar();
     setChatHeaderForConversation(currentConversationFile);
     await restoreChatHistory(currentConversationFile);
+    setStartScreenVisible(false);
   }
 
   async function generateConversationTitleFromFirstMessage(message, filename) {
@@ -1334,13 +1539,18 @@
     }
   }
 
-  async function maybeAssignAutoConversationTitle(firstMessage, filename) {
-    if (!filename || hasCustomConversationTitle(filename)) {
+  async function maybeAssignAutoConversationTitle(firstMessage, filename, provisionalTitle = "") {
+    if (!filename) {
       return;
     }
 
     const title = await generateConversationTitleFromFirstMessage(firstMessage, filename);
     if (!title) {
+      return;
+    }
+
+    const currentTitle = (conversationTitles[filename] || "").trim();
+    if (currentTitle && provisionalTitle && currentTitle !== provisionalTitle) {
       return;
     }
 
@@ -1384,14 +1594,40 @@
       const filename = getNextConversationFilename();
       await createConversationFile(filename);
       conversationFiles = await fetchConversationFiles();
-      await openConversation(filename);
+      refreshBannerFromAllConversations();
+      await openConversation(filename, { showStartScreen: true });
     } catch (error) {
       showError(`Could not create conversation: ${error.message || "Unknown error"}`);
     }
   }
 
-  async function openConversation(filename) {
-    if (!filename || filename === currentConversationFile) {
+  async function openConversation(filename, options = {}) {
+    if (!filename) {
+      return;
+    }
+
+    const showStartScreen = Boolean(options.showStartScreen);
+
+    if (filename === currentConversationFile) {
+      const history = await fetchChatHistory(filename);
+      const hasMessages = history.length > 0;
+      const shouldShowStartScreen = showStartScreen || !hasMessages;
+      
+      if (shouldShowStartScreen) {
+        setStartScreenVisible(true);
+        const startInput = document.getElementById("startInput");
+        if (startInput) {
+          startInput.value = "";
+          startInput.style.height = "auto";
+          startInput.style.overflowY = "hidden";
+          startInput.focus();
+        }
+        if (shouldShowStartScreen) {
+          refreshBannerFromAllConversations();
+        }
+      } else {
+        setStartScreenVisible(false);
+      }
       return;
     }
 
@@ -1400,17 +1636,28 @@
     renderConversationSidebar();
     setChatHeaderForConversation(filename);
     await restoreChatHistory(filename);
+
+    const history = await fetchChatHistory(filename);
+    const hasMessages = history.length > 0;
+    const shouldShowStartScreen = showStartScreen || !hasMessages;
+
+    if (shouldShowStartScreen) {
+      setStartScreenVisible(true);
+      const startInput = document.getElementById("startInput");
+      if (startInput) {
+        startInput.value = "";
+        startInput.style.height = "auto";
+        startInput.style.overflowY = "hidden";
+        startInput.focus();
+      }
+      refreshBannerFromAllConversations();
+    } else {
+      setStartScreenVisible(false);
+    }
   }
 
   function activateChatUI() {
-    const start = document.getElementById("startScreen");
-    start.style.opacity = "0";
-
-    setTimeout(() => {
-      start.style.display = "none";
-      document.getElementById("chatMessages").classList.remove("hidden");
-      document.getElementById("chatInputArea").classList.remove("hidden");
-    }, 300);
+    setStartScreenVisible(false);
   }
 
   function sendFromStart() {
@@ -1877,6 +2124,18 @@
     if (!text) return;
     const activeConversationAtSend = currentConversationFile;
     const shouldAutoName = activeConversationAtSend && !hasCustomConversationTitle(activeConversationAtSend);
+    let provisionalTitle = "";
+
+    if (shouldAutoName) {
+      provisionalTitle = normalizeConversationTitle(text, formatConversationName(activeConversationAtSend));
+      conversationTitles[activeConversationAtSend] = provisionalTitle;
+      saveConversationTitles();
+      renderConversationSidebar();
+      if (activeConversationAtSend === currentConversationFile) {
+        setChatHeaderForConversation(activeConversationAtSend);
+      }
+      maybeAssignAutoConversationTitle(text, activeConversationAtSend, provisionalTitle);
+    }
 
     appendMessage("user", text);
     input.value = "";
@@ -1909,9 +2168,6 @@
         appendMessage("ai", `Error: ${data.error || "Request failed with status " + res.status}`);
       } else {
         await restoreChatHistory(activeConversationAtSend);
-        if (shouldAutoName) {
-          maybeAssignAutoConversationTitle(text, activeConversationAtSend);
-        }
         playSound();
       }
     } catch (error) {
@@ -2003,9 +2259,10 @@
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  async function typewriterLoopWithFetch(defaultText, getFetchedText) {
+  async function typewriterLoopWithFetch(defaultText, getNextBannerText) {
     const typingSpeed = 45;
     const deletingSpeed = 25;
+    const displayDuration = 4000;
 
     const textEl = document.getElementById("bannerText");
     const cursor = document.getElementById("cursor");
@@ -2013,8 +2270,8 @@
     let currentText = defaultText;
 
     while (true) {
-      const fetchedText = getFetchedText();
-      const textToUse = fetchedText || currentText;
+      const nextBanner = getNextBannerText();
+      const textToUse = nextBanner || currentText;
 
       // ---- TYPE ----
       for (let i = 0; i <= textToUse.length; i++) {
@@ -2030,16 +2287,13 @@
         await sleep(250);
       }
 
+      // ---- DISPLAY FOR A MOMENT ----
+      await sleep(displayDuration);
+
       // ---- DELETE ----
       for (let i = textToUse.length; i >= 0; i--) {
         textEl.textContent = textToUse.slice(0, i);
         await sleep(deletingSpeed);
-      }
-
-      // Update current text if we got a new one
-      const newFetchedText = getFetchedText();
-      if (newFetchedText) {
-        currentText = newFetchedText;
       }
 
       await sleep(400);
