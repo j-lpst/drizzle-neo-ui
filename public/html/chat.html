@@ -2322,11 +2322,12 @@
     return escaped.replace(/\n/g, "<br>");
   }
 
-  function createMessageElement(role, text, index, filename) {
+  function createMessageElement(role, text, displayIndex, originalIndex, filename) {
     const msgClass = role === "user" ? "user" : "ai";
     const msgDiv = document.createElement("div");
     msgDiv.className = `msg ${msgClass}`;
-    msgDiv.dataset.index = index;
+    msgDiv.dataset.displayIndex = displayIndex;
+    msgDiv.dataset.originalIndex = originalIndex;
     msgDiv.dataset.role = role;
 
     const textSpan = document.createElement("span");
@@ -2339,7 +2340,7 @@
     editBtn.title = "Edit message";
     editBtn.onclick = (e) => {
       e.stopPropagation();
-      startEditingMessage(index, role, text, filename);
+      startEditingMessage(originalIndex, role, text, filename);
     };
 
     msgDiv.appendChild(textSpan);
@@ -2348,16 +2349,16 @@
     return msgDiv;
   }
 
-  function createMessageEditContainer(role, text, index, filename) {
+  function createMessageEditContainer(role, text, originalIndex, filename) {
     const container = document.createElement("div");
     const isUser = role === "user";
     container.className = `msg-edit-container ${isUser ? "user-side" : "ai-side"}`;
-    container.dataset.index = index;
+    container.dataset.originalIndex = originalIndex;
 
     const textarea = document.createElement("textarea");
     textarea.className = "msg-edit-textarea";
     textarea.value = text;
-    textarea.dataset.index = index;
+    textarea.dataset.originalIndex = originalIndex;
 
     const actionsDiv = document.createElement("div");
     actionsDiv.className = "msg-edit-actions";
@@ -2365,12 +2366,12 @@
     const saveBtn = document.createElement("button");
     saveBtn.className = "msg-edit-btn save";
     saveBtn.innerHTML = '<i class="fa fa-check"></i> Save';
-    saveBtn.onclick = () => saveEditedMessage(index, textarea.value, filename);
+    saveBtn.onclick = () => saveEditedMessage(originalIndex, textarea.value, filename);
 
     const cancelBtn = document.createElement("button");
     cancelBtn.className = "msg-edit-btn cancel";
     cancelBtn.innerHTML = '<i class="fa fa-times"></i> Cancel';
-    cancelBtn.onclick = () => cancelEditingMessage(index, filename);
+    cancelBtn.onclick = () => cancelEditingMessage(originalIndex, filename);
 
     actionsDiv.appendChild(saveBtn);
     actionsDiv.appendChild(cancelBtn);
@@ -2381,14 +2382,14 @@
     return container;
   }
 
-  async function startEditingMessage(index, role, text, filename) {
+  async function startEditingMessage(originalIndex, role, text, filename) {
     const chat = document.getElementById("chatMessages");
     if (!chat) return;
 
-    const msgElement = chat.querySelector(`[data-index="${index}"]`);
+    const msgElement = chat.querySelector(`[data-original-index="${originalIndex}"]`);
     if (!msgElement) return;
 
-    const editContainer = createMessageEditContainer(role, text, index, filename);
+    const editContainer = createMessageEditContainer(role, text, originalIndex, filename);
     chat.insertBefore(editContainer, msgElement);
     chat.removeChild(msgElement);
 
@@ -2405,7 +2406,7 @@
     await restoreChatHistory(filename);
   }
 
-  async function saveEditedMessage(index, newText, filename) {
+  async function saveEditedMessage(originalIndex, newText, filename) {
     try {
       const apiBase = getApiBase();
       const response = await authenticatedFetch(`${apiBase}/state/${encodeURIComponent(filename)}`);
@@ -2427,10 +2428,20 @@
       }
 
       const history = Array.isArray(context.history) ? context.history : [];
-      const messageToEdit = history.at(index);
+      const messageToEdit = history.at(originalIndex);
 
       if (!messageToEdit) {
         showError("Message not found");
+        return;
+      }
+
+      if (messageToEdit.role !== "user" && messageToEdit.role !== "assistant") {
+        showError("Cannot edit tool messages");
+        return;
+      }
+
+      if (!messageToEdit.content) {
+        showError("Cannot edit messages without content");
         return;
       }
 
@@ -2475,17 +2486,22 @@
     }
 
     const history = Array.isArray(parsed.history) ? parsed.history : [];
-    return history
-      .filter(
-        (item) =>
-          item &&
-          (item.role === "user" || item.role === "assistant") &&
-          typeof item.content === "string"
-      )
-      .map((item) => ({
-        role: item.role === "assistant" ? "ai" : "user",
-        text: item.content,
-      }));
+    const displayableMessages = [];
+    let displayIndex = 0;
+
+    for (let i = 0; i < history.length; i++) {
+      const item = history[i];
+      if (item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string") {
+        displayableMessages.push({
+          role: item.role === "assistant" ? "ai" : "user",
+          text: item.content,
+          originalIndex: i,
+          displayIndex: displayIndex++,
+        });
+      }
+    }
+
+    return displayableMessages;
   }
 
   async function clearChatHistory() {
@@ -2527,9 +2543,14 @@
     const chat = document.getElementById("chatMessages");
     chat.innerHTML = "";
     const history = await fetchChatHistory(filename);
-    for (let i = 0; i < history.length; i++) {
-      const message = history[i];
-      const msgElement = createMessageElement(message.role, message.text, i, filename);
+    for (const message of history) {
+      const msgElement = createMessageElement(
+        message.role,
+        message.text,
+        message.displayIndex,
+        message.originalIndex,
+        filename
+      );
       chat.appendChild(msgElement);
     }
     chat.scrollTop = chat.scrollHeight;
