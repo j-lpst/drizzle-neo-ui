@@ -1,4 +1,321 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>DrizzleChat</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Sora:wght@500;600;700&display=swap" rel="stylesheet" />
+	<style>
+		:root {
+			--bg-top: #10271f;
+			--bg-bottom: #06110d;
+			--text-main: #eff9f1;
+			--text-muted: #b7cfbe;
+			--card-bg: rgba(17, 37, 30, 0.7);
+			--card-border: rgba(203, 242, 212, 0.22);
+			--accent: #79f2af;
+			--accent-strong: #39ca82;
+			--shadow: rgba(7, 16, 12, 0.52);
+		}
 
+		* {
+			box-sizing: border-box;
+		}
+
+		html,
+		body {
+			margin: 0;
+			min-height: 100%;
+			font-family: "Outfit", "Segoe UI", sans-serif;
+			color: var(--text-main);
+			background: radial-gradient(circle at 15% 20%, #1f5b43 0%, transparent 38%),
+									radial-gradient(circle at 82% 72%, #174c38 0%, transparent 42%),
+									linear-gradient(165deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+			overflow-x: hidden;
+		}
+
+		body {
+			display: grid;
+			place-items: center;
+			padding: 22px;
+			position: relative;
+			isolation: isolate;
+		}
+
+		.noise {
+			position: fixed;
+			inset: 0;
+			background-image: radial-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+			background-size: 3px 3px;
+			opacity: 0.22;
+			pointer-events: none;
+			z-index: -1;
+		}
+
+		.blob {
+			position: fixed;
+			width: clamp(240px, 28vw, 420px);
+			aspect-ratio: 1;
+			border-radius: 50%;
+			filter: blur(34px);
+			opacity: 0.55;
+			z-index: -1;
+			animation: float 13s ease-in-out infinite alternate;
+		}
+
+		.blob.one {
+			top: -90px;
+			left: -70px;
+			background: #72df9d;
+		}
+
+		.blob.two {
+			bottom: -120px;
+			right: -60px;
+			background: #42b87a;
+			animation-delay: 2.2s;
+		}
+
+		.shell {
+			width: min(980px, 100%);
+			border: 1px solid var(--card-border);
+			border-radius: 26px;
+			background: linear-gradient(145deg, rgba(30, 60, 48, 0.66), var(--card-bg));
+			box-shadow: 0 26px 80px var(--shadow);
+			backdrop-filter: blur(7px);
+			padding: clamp(24px, 4vw, 52px);
+			animation: rise 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+			text-align: center;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
+
+		.brand {
+			display: inline-flex;
+			align-items: center;
+			gap: 10px;
+			font-family: "Sora", "Segoe UI", sans-serif;
+			font-weight: 700;
+			letter-spacing: 0.04em;
+			font-size: 0.95rem;
+			text-transform: uppercase;
+			padding: 8px 14px;
+			border-radius: 999px;
+			background: rgba(121, 242, 175, 0.16);
+			border: 1px solid rgba(121, 242, 175, 0.4);
+			color: #d4fce2;
+		}
+
+		h1 {
+			margin: 18px 0 16px;
+			font-family: "Sora", "Segoe UI", sans-serif;
+			font-size: clamp(1.64rem, 4.48vw, 3.36rem);
+			line-height: 1.08;
+			letter-spacing: -0.02em;
+			max-width: 14ch;
+		}
+
+		p {
+			margin: 0;
+			color: var(--text-muted);
+			font-size: clamp(0.8rem, 0.96vw, 0.976rem);
+			line-height: 1.72;
+			max-width: 54ch;
+		}
+
+		.actions {
+			display: flex;
+			gap: 14px;
+			margin-top: 30px;
+			flex-wrap: wrap;
+			align-items: center;
+			justify-content: center;
+			flex-direction: column;
+		}
+
+		.start-btn {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			text-decoration: none;
+			font-family: "Sora", "Segoe UI", sans-serif;
+			font-weight: 700;
+			letter-spacing: 0.02em;
+			color: #032415;
+			background: linear-gradient(135deg, var(--accent) 0%, #8fffc0 45%, #53e093 100%);
+			border: 1px solid rgba(242, 255, 248, 0.55);
+			border-radius: 14px;
+			min-height: 88px;
+			padding: 0 48px;
+			font-size: 1.28rem;
+			width: 100%;
+			max-width: 480px;
+			transition: transform 180ms ease, box-shadow 200ms ease, filter 200ms ease;
+			box-shadow: 0 12px 34px rgba(89, 234, 156, 0.36);
+		}
+
+		.start-btn:hover {
+			transform: translateY(-2px) scale(1.01);
+			filter: saturate(1.04);
+			box-shadow: 0 18px 42px rgba(89, 234, 156, 0.42);
+		}
+
+		.start-btn:active {
+			transform: translateY(0);
+		}
+
+		.hint {
+			font-size: 0.768rem;
+			color: #d6eddb;
+			opacity: 0.86;
+		}
+
+		.grid {
+			margin-top: clamp(24px, 4vw, 38px);
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 12px;
+			max-width: 640px;
+		}
+
+		.panel {
+			border-radius: 14px;
+			border: 1px solid rgba(187, 232, 199, 0.28);
+			background: rgba(8, 26, 20, 0.58);
+			padding: 11.2px 11.2px 9.6px;
+			font-size: 0.8rem;
+		}
+
+		.panel strong {
+			display: block;
+			font-family: "Sora", "Segoe UI", sans-serif;
+			margin-bottom: 4.8px;
+			color: #e9fff1;
+			font-size: 0.96rem;
+		}
+
+		.panel span {
+			color: #c6decf;
+			font-size: 0.76rem;
+			line-height: 1.5;
+		}
+
+		@keyframes rise {
+			from {
+				opacity: 0;
+				transform: translateY(10px) scale(0.992);
+			}
+			to {
+				opacity: 1;
+				transform: translateY(0) scale(1);
+			}
+		}
+
+		@keyframes float {
+			from {
+				transform: translateY(-4px) translateX(-4px);
+			}
+			to {
+				transform: translateY(10px) translateX(8px);
+			}
+		}
+
+		@keyframes launch {
+			0% {
+				opacity: 1;
+				transform: scale(1);
+			}
+			50% {
+				opacity: 0.95;
+			}
+			100% {
+				opacity: 0;
+				transform: scale(1.08);
+			}
+		}
+
+		body.launching {
+			animation: launch 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+		}
+
+		@media (max-width: 860px) {
+			.grid {
+				grid-template-columns: 1fr;
+			}
+		}
+
+		@media (max-width: 640px) {
+			body {
+				padding: 14px;
+			}
+
+			.shell {
+				border-radius: 18px;
+				padding: 22px 18px;
+			}
+
+			.start-btn {
+				width: 100%;
+			}
+
+			.actions {
+				align-items: stretch;
+			}
+		}
+	</style>
+</head>
+<body>
+	<div class="noise" aria-hidden="true"></div>
+	<div class="blob one" aria-hidden="true"></div>
+	<div class="blob two" aria-hidden="true"></div>
+
+	<main class="shell">
+		<div class="brand">DrizzleChat</div>
+		<h1>Chat with Drizzle AI now!</h1>
+		<p>
+			Talk with Drizzle AI through a clean, local-first interface. Tune your model,
+			keep memory context alive, and continue conversations from one place.
+		</p>
+
+		<div class="actions">
+			<a class="start-btn" href="./html/chat.html">Start Chatting</a>
+			<span class="hint">Opens the full chat interface</span>
+		</div>
+
+		<section class="grid" aria-label="Feature highlights">
+			<article class="panel">
+				<strong>Context-aware</strong>
+				<span>Conversation history and memory tools are ready as soon as you enter chat.</span>
+			</article>
+			<article class="panel">
+				<strong>Model control</strong>
+				<span>Switch models and change your preferred settings with backed config editor.</span>
+			</article>
+			<article class="panel">
+				<strong>Built for flow</strong>
+				<span>Jump from landing to chat instantly with no extra setup steps.</span>
+			</article>
+		</section>
+	</main>
+
+	<script>
+		const startBtn = document.querySelector('.start-btn');
+		
+		startBtn.addEventListener('click', (e) => {
+			e.preventDefault();
+			const destination = startBtn.href;
+			
+			// Add animation class to body
+			document.body.classList.add('launching');
+			
+			// Navigate after animation completes
+			setTimeout(() => {
+				window.location.href = destination;
+			}, 600);
+		});
+	</script>
+</body>
 </html>
