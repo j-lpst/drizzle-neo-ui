@@ -334,6 +334,133 @@
     border-radius: 12px;
     overflow-wrap: anywhere;
     word-break: break-word;
+    position: relative;
+  }
+
+  .msg .edit-btn {
+    position: absolute;
+    top: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+  }
+
+  .msg:hover .edit-btn {
+    opacity: 1;
+  }
+
+  .msg.user .edit-btn {
+    right: 8px;
+    color: #555;
+  }
+
+  .msg.user .edit-btn:hover {
+    background: rgba(0,0,0,0.1);
+  }
+
+  .msg.ai .edit-btn {
+    left: 8px;
+    color: rgba(255,255,255,0.8);
+  }
+
+  .msg.ai .edit-btn:hover {
+    background: rgba(255,255,255,0.2);
+  }
+
+  body.dark-mode .msg.user .edit-btn {
+    color: #aaa;
+  }
+
+  body.dark-mode .msg.user .edit-btn:hover {
+    background: rgba(255,255,255,0.1);
+  }
+
+  .msg-edit-container {
+    max-width: 70%;
+    margin-bottom: 12px;
+  }
+
+  .msg-edit-container.user-side {
+    margin-left: auto;
+  }
+
+  .msg-edit-container.ai-side {
+    margin-right: auto;
+  }
+
+  .msg-edit-textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid #ccc;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    resize: vertical;
+    min-height: 60px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .msg-edit-textarea:focus {
+    outline: none;
+    border-color: #578676;
+    box-shadow: 0 0 0 2px #5786764d;
+  }
+
+  body.dark-mode .msg-edit-textarea {
+    background: rgb(34, 35, 39);
+    color: rgb(227, 227, 229);
+    border-color: #333;
+  }
+
+  body.dark-mode .msg-edit-textarea:focus {
+    border-color: #578676;
+  }
+
+  .msg-edit-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  .msg-edit-container.user-side .msg-edit-actions {
+    justify-content: flex-end;
+  }
+
+  .msg-edit-container.ai-side .msg-edit-actions {
+    justify-content: flex-start;
+  }
+
+  .msg-edit-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  .msg-edit-btn.save {
+    background: #578676;
+    color: white;
+  }
+
+  .msg-edit-btn.save:hover {
+    filter: brightness(0.95);
+  }
+
+  .msg-edit-btn.cancel {
+    background: #6c757d;
+    color: white;
+  }
+
+  .msg-edit-btn.cancel:hover {
+    filter: brightness(0.92);
   }
 
   .user {
@@ -2195,6 +2322,138 @@
     return escaped.replace(/\n/g, "<br>");
   }
 
+  function createMessageElement(role, text, index, filename) {
+    const msgClass = role === "user" ? "user" : "ai";
+    const msgDiv = document.createElement("div");
+    msgDiv.className = `msg ${msgClass}`;
+    msgDiv.dataset.index = index;
+    msgDiv.dataset.role = role;
+
+    const textSpan = document.createElement("span");
+    textSpan.className = "msg-text";
+    textSpan.innerHTML = formatUserMessage(text);
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "edit-btn";
+    editBtn.innerHTML = '<i class="fa fa-pencil"></i>';
+    editBtn.title = "Edit message";
+    editBtn.onclick = (e) => {
+      e.stopPropagation();
+      startEditingMessage(index, role, text, filename);
+    };
+
+    msgDiv.appendChild(textSpan);
+    msgDiv.appendChild(editBtn);
+
+    return msgDiv;
+  }
+
+  function createMessageEditContainer(role, text, index, filename) {
+    const container = document.createElement("div");
+    const isUser = role === "user";
+    container.className = `msg-edit-container ${isUser ? "user-side" : "ai-side"}`;
+    container.dataset.index = index;
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "msg-edit-textarea";
+    textarea.value = text;
+    textarea.dataset.index = index;
+
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "msg-edit-actions";
+
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "msg-edit-btn save";
+    saveBtn.innerHTML = '<i class="fa fa-check"></i> Save';
+    saveBtn.onclick = () => saveEditedMessage(index, textarea.value, filename);
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "msg-edit-btn cancel";
+    cancelBtn.innerHTML = '<i class="fa fa-times"></i> Cancel';
+    cancelBtn.onclick = () => cancelEditingMessage(index, filename);
+
+    actionsDiv.appendChild(saveBtn);
+    actionsDiv.appendChild(cancelBtn);
+
+    container.appendChild(textarea);
+    container.appendChild(actionsDiv);
+
+    return container;
+  }
+
+  async function startEditingMessage(index, role, text, filename) {
+    const chat = document.getElementById("chatMessages");
+    if (!chat) return;
+
+    const msgElement = chat.querySelector(`[data-index="${index}"]`);
+    if (!msgElement) return;
+
+    const editContainer = createMessageEditContainer(role, text, index, filename);
+    chat.insertBefore(editContainer, msgElement);
+    chat.removeChild(msgElement);
+
+    const textarea = editContainer.querySelector("textarea");
+    if (textarea) {
+      textarea.focus();
+      textarea.style.height = "auto";
+      const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight);
+      textarea.style.height = Math.min(textarea.scrollHeight, 200) + "px";
+    }
+  }
+
+  async function cancelEditingMessage(index, filename) {
+    await restoreChatHistory(filename);
+  }
+
+  async function saveEditedMessage(index, newText, filename) {
+    try {
+      const apiBase = getApiBase();
+      const response = await authenticatedFetch(`${apiBase}/state/${encodeURIComponent(filename)}`);
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        showError(`Failed to load context file: ${data.error || "Unknown error"}`);
+        return;
+      }
+
+      let context = {};
+      if (typeof data.content === "string") {
+        try {
+          context = JSON.parse(data.content);
+        } catch {
+          showError("Invalid context file format");
+          return;
+        }
+      }
+
+      const history = Array.isArray(context.history) ? context.history : [];
+      const messageToEdit = history.at(index);
+
+      if (!messageToEdit) {
+        showError("Message not found");
+        return;
+      }
+
+      messageToEdit.content = newText.trim();
+
+      const updatedContent = JSON.stringify(context, null, 2);
+      const updateResponse = await authenticatedFetch(`${apiBase}/state/${encodeURIComponent(filename)}`, {
+        method: "PUT",
+        body: JSON.stringify({ content: updatedContent }),
+      });
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json().catch(() => ({}));
+        showError(`Failed to save: ${errorData.error || "Unknown error"}`);
+        return;
+      }
+
+      await restoreChatHistory(filename);
+    } catch (error) {
+      showError(`Failed to save message: ${error.message || "Unknown error"}`);
+    }
+  }
+
   async function fetchChatHistory(filename = currentConversationFile) {
     if (!filename) return [];
 
@@ -2258,19 +2517,20 @@
     }
   }
 
-  function appendMessage(role, text) {
+  function appendMessage(role, text, index = null) {
     const chat = document.getElementById("chatMessages");
-    const msgClass = role === "user" ? "user" : "ai";
-    chat.innerHTML += `<div class="msg ${msgClass}">${formatUserMessage(text)}</div>`;
+    const msgElement = createMessageElement(role, text, index, currentConversationFile);
+    chat.appendChild(msgElement);
   }
 
   async function restoreChatHistory(filename = currentConversationFile) {
     const chat = document.getElementById("chatMessages");
     chat.innerHTML = "";
     const history = await fetchChatHistory(filename);
-    for (const message of history) {
-      const msgClass = message.role === "user" ? "user" : "ai";
-      chat.innerHTML += `<div class="msg ${msgClass}">${formatUserMessage(message.text)}</div>`;
+    for (let i = 0; i < history.length; i++) {
+      const message = history[i];
+      const msgElement = createMessageElement(message.role, message.text, i, filename);
+      chat.appendChild(msgElement);
     }
     chat.scrollTop = chat.scrollHeight;
   }
