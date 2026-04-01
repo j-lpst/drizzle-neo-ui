@@ -149,7 +149,27 @@
     padding: 0;
   }
 
+  .conversation-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .conversation-delete {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    opacity: 0.75;
+    font-size: 12px;
+    padding: 0;
+  }
+
   .conversation-rename:hover {
+    opacity: 1;
+  }
+
+  .conversation-delete:hover {
     opacity: 1;
   }
 
@@ -1598,6 +1618,44 @@
     }
   }
 
+  async function deleteConversation(filename) {
+    const displayName = formatConversationName(filename);
+    const shouldDelete = window.confirm(`Delete "${displayName}"? This cannot be undone.`);
+    if (!shouldDelete) return;
+
+    try {
+      const apiBase = getApiBase();
+      const response = await authenticatedFetch(`${apiBase}/delete-conversation/${encodeURIComponent(filename)}`, {
+        method: "DELETE",
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to delete conversation (${response.status})`);
+      }
+
+      delete conversationTitles[filename];
+      saveConversationTitles();
+
+      conversationFiles = await fetchConversationFiles();
+      if (!conversationFiles.includes("context.json")) {
+        await createConversationFile("context.json");
+        conversationFiles = await fetchConversationFiles();
+      }
+
+      if (filename === currentConversationFile) {
+        const nextConversation = conversationFiles[0] || "context.json";
+        await openConversation(nextConversation, { showStartScreen: true });
+      } else {
+        renderConversationSidebar();
+      }
+
+      refreshBannerFromAllConversations();
+    } catch (error) {
+      showError(`Could not delete conversation: ${error.message || "Unknown error"}`);
+    }
+  }
+
   function setChatHeaderForConversation(filename) {
     const chatHeader = document.getElementById("chatHeader");
     if (!chatHeader) return;
@@ -1640,8 +1698,23 @@
         renameConversation(filename);
       });
 
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "conversation-delete";
+      deleteBtn.title = "Delete conversation";
+      deleteBtn.innerHTML = '<i class="fa fa-trash" aria-hidden="true"></i>';
+      deleteBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        deleteConversation(filename);
+      });
+
+      const actions = document.createElement("div");
+      actions.className = "conversation-actions";
+      actions.appendChild(renameBtn);
+      actions.appendChild(deleteBtn);
+
       item.appendChild(title);
-      item.appendChild(renameBtn);
+      item.appendChild(actions);
       container.appendChild(item);
     }
   }
