@@ -1040,9 +1040,13 @@
       <h2><i class="fa fa-gear"></i> Settings</h2>
       <button class="close-btn" onclick="closeSettings()">×</button>
     </div>
-   <div class="setting-item">
+    <div class="setting-item">
       <span><i class="fa fa-gear"></i> Dark Mode</span>
       <div class="toggle-switch" onclick="toggleDarkMode(event)"></div>
+    </div>
+    <div class="setting-item">
+      <span><i class="fa fa-wrench"></i> Enable Tools</span>
+      <div id="toolsToggle" class="toggle-switch" onclick="toggleTools(event)"></div>
     </div>
     <div class="setting-item">
       <label for="apiBaseInput">🔗 API Base</label>
@@ -1496,6 +1500,11 @@
           localStorage.removeItem("apiPassword");
         }
       });
+    }
+
+    const toolsToggle = document.getElementById("toolsToggle");
+    if (toolsToggle && isToolsEnabled()) {
+      toolsToggle.classList.add("active");
     }
 
     await checkAndAuthenticate();
@@ -2736,6 +2745,32 @@
 
       await sleep(400);
     }
+
+    //Tools toggle stuff
+  }
+  function isToolsEnabled() {
+  return localStorage.getItem("toolsEnabled") !== "false";
+  }
+
+  function setToolsEnabled(enabled) {
+    localStorage.setItem("toolsEnabled", enabled ? "true" : "false");
+  }
+
+  function toggleTools(event) {
+    event.stopPropagation();
+
+    const toggle = event.currentTarget;
+    const isActive = toggle.classList.toggle("active");
+
+    setToolsEnabled(isActive);
+  }
+
+  function getToolArgs() {
+    const args = [];
+    if (!isToolsEnabled()) {
+      args.push("--no-tools");
+    }
+    return args;
   }
 </script>
 
