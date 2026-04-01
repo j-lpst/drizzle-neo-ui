@@ -191,6 +191,38 @@
       50% { opacity: 0; }
     }
 
+    @keyframes buttonLaunch {
+      0% {
+        transform: scale(1);
+      }
+      30% {
+        transform: scale(0.94);
+      }
+      100% {
+        transform: scale(1.18);
+        opacity: 0;
+      }
+    }
+
+    @keyframes pageLaunch {
+      0% {
+        opacity: 1;
+        transform: scale(1);
+        filter: blur(0px);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(1.04);
+        filter: blur(4px);
+      }
+    }
+
+    body.launching .top-nav,
+    body.launching .hero,
+    body.launching .footer {
+      animation: pageLaunch 620ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
     .hero-tagline {
       font-size: 1.75rem;
       line-height: 1.3;
@@ -255,6 +287,11 @@
       width: 300px;
       height: 300px;
       opacity: 0;
+    }
+
+    .big-button.launching {
+      animation: buttonLaunch 620ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+      pointer-events: none;
     }
 
     .big-button i {
@@ -537,14 +574,14 @@
     function startChat() {
       const btn = document.getElementById("startBtn");
       btn.classList.add("ripple");
+      btn.classList.add("launching");
+      document.body.classList.add("launching");
+      btn.disabled = true;
       setTimeout(() => btn.classList.remove("ripple"), 600);
-
-      btn.style.transform = "scale(0.88)";
-      btn.style.boxShadow = "0 4px 15px rgba(87, 134, 118, 0.3)";
 
       setTimeout(() => {
         window.location.href = "../public/html/chat.html";
-      }, 280);
+      }, 620);
     }
 
     window.addEventListener("DOMContentLoaded", () => {
