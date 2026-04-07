@@ -2266,12 +2266,34 @@
       console.error("Model dropdown element not found");
       return;
     }
+
+    const loadModelFromConfigFallback = async () => {
+      const configResponse = await authenticatedFetch(`${apiBase}/config`);
+      const config = await configResponse.json().catch(() => ({}));
+      const configuredModel = config?.model?.model;
+
+      if (configuredModel) {
+        modelMenu.innerHTML = '<option value="">Select a model</option>';
+        const option = document.createElement("option");
+        option.value = configuredModel;
+        option.textContent = configuredModel;
+        modelMenu.appendChild(option);
+        modelMenu.value = configuredModel;
+      } else {
+        modelMenu.innerHTML = '<option value="">No models available</option>';
+      }
+    };
     
     try {
       const response = await authenticatedFetch(`${apiBase}/models`);
-      const data = await response.json();
+      if (!response.ok) {
+        await loadModelFromConfigFallback();
+        return;
+      }
+
+      const data = await response.json().catch(() => ({}));
       
-      if (data.models && Array.isArray(data.models)) {
+      if (data.models && Array.isArray(data.models) && data.models.length > 0) {
         const currentSelection = modelMenu.value;
         modelMenu.innerHTML = '<option value="">Select a model</option>';
         
@@ -2286,11 +2308,16 @@
           modelMenu.value = currentSelection;
         }
       } else {
-        modelMenu.innerHTML = '<option value="">No models available</option>';
+        await loadModelFromConfigFallback();
       }
     } catch (error) {
-      console.error("Failed to load models:", error);
-      modelMenu.innerHTML = '<option value="">Failed to load models</option>';
+      console.error("Failed to load models, trying config fallback:", error);
+      try {
+        await loadModelFromConfigFallback();
+      } catch (fallbackError) {
+        console.error("Model fallback failed:", fallbackError);
+        modelMenu.innerHTML = '<option value="">Failed to load models</option>';
+      }
     }
   }
 
