@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DrizzleChat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <div class="sidebar-inner">
+    <header>
+    <div class="sidebar-title">
+      <img src="../media/drizzle_logo_2.png" alt="Drizzle AI Logo" class="sidebar-logo">
+      <span class="title-text">DrizzleChat</span>
+    </div>
+    </header>
+
+    <div id="newConversation" onclick="createConversation()"><i class="fa fa-plus"></i> New Conversation</div>
+    <div id="conversations">
+    </div>
+
+    <div id="logs" onclick="openLogs()"><i class="fa fa-file-text-o"></i> Logs</div>
+    <div id="settings" onclick="openSettings()"><i class="fa fa-gear"></i> Settings</div>
+  </div>
+</div>
+
+<!-- Toggle Button -->
+<div id="sidebarToggle" onclick="toggleSidebar()">☰</div>
+
+<!-- Main Chat -->
+<div id="chatContainer">
+  <div id="chatHeader">Plant Care Help</div>
+
+  <div id="startScreen">
+    <h1 id="startTitle">
+      <span id="bannerText">Drizzle AI ready...</span><span id="cursor">_</span>
+    </h1>
+
+    <div class="start-input-wrapper">
+      <textarea
+        id="startInput"
+        class="chat-input-clone"
+        placeholder="Ask DrizzleChat..."
+        rows="1"
+      ></textarea>
+
+      <button class="send-btn-clone" onclick="sendFromStart()">Send</button>
+    </div>
+  </div>
+
+  <div id="chatMessages"></div>
+
+  <div id="chatInputArea">
+    <select id="modelMenu" title="Chat model">
+      <option value="">Loading models...</option>
+    </select>
+    <textarea
+    id="chatInput"
+    placeholder="Ask DrizzleChat..."
+    rows="1"
+    ></textarea>
+    <button id="sendBtn" onclick="sendChat()">Send</button>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settingsModal" onclick="closeSettingsOnOutside(event)">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fa fa-gear"></i> Settings</h2>
+      <button class="close-btn" onclick="closeSettings()">×</button>
+    </div>
+    <div class="setting-item">
+      <span><i class="fa fa-gear"></i> Dark Mode</span>
+      <div class="toggle-switch" onclick="toggleDarkMode(event)"></div>
+    </div>
+    <div class="setting-item">
+      <span><i class="fa fa-wrench"></i> Enable Tools</span>
+      <div id="toolsToggle" class="toggle-switch" onclick="toggleTools(event)"></div>
+    </div>
+    <div class="setting-item">
+      <label for="apiBaseInput">🔗 API Base</label>
+      <input id="apiBaseInput" type="text" placeholder="http://127.0.0.1:5000" />
+    </div>
+    <div class="setting-item">
+      <label for="apiPasswordInput">🔒 API Password</label>
+      <input id="apiPasswordInput" type="password" placeholder="Enter password" />
+    </div>
+    <div class="setting-item">
+      <span id="authStatus" class="setting-status">Not authenticated</span>
+      <button id="authActionBtn" class="settings-action-btn" onclick="handleAuthAction()">Login</button>
+    </div>
+    <div class="setting-item">
+      <label for="apiBaseInput">🔗 API Base</label>
+      <input id="apiBaseInput" type="text" placeholder="http://127.0.0.1:5000" />
+    </div>
+    <div class="setting-item">
+      <span>🔊 Notification Sound</span>
+      <span id="soundStatus" class="setting-status">Default sound</span>
+    </div>
+    <div class="setting-item">
+      <span><i class="fa fa-trash" aria-hidden="true"></i> Clear History</span>
+      <button class="settings-action-btn" onclick="clearChatHistory()">Clear</button>
+    </div>
+    <div class="setting-item">
+      <span><i class="fa fa-code" aria-hidden="true"></i> Backend Config</span>
+      <button class="settings-action-btn" onclick="openConfigEditor()">Edit</button>
+    </div>
+  </div>
+</div>
+
+ <!-- Config Editor Modal -->
+  <div id="configModal" onclick="closeConfigOnOutside(event)">
+    <div class="config-modal-content">
+      <div class="modal-header">
+        <h2><i class="fa fa-code" aria-hidden="true"></i> Edit Backend Config</h2>
+        <button class="close-btn" onclick="closeConfigEditor()">×</button>
+      </div>
+      <p class="config-hint">These fields come from backend config.json. Change values and click Save. Simple labels are shown first, and every field path is shown below each input.</p>
+      <div id="configForm" class="config-form"></div>
+      <div id="configEditorStatus"></div>
+      <div class="config-editor-actions">
+        <button class="settings-action-btn secondary" onclick="loadBackendConfig()">Reload</button>
+        <button class="settings-action-btn secondary" onclick="restoreBackendConfigDefaults()">Restore defaults</button>
+        <button class="settings-action-btn" onclick="saveBackendConfig()">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logs Modal -->
+  <div id="logsModal" onclick="closeLogsOnOutside(event)">
+    <div class="logs-modal-content">
+      <div class="logs-modal-header">
+        <h2><i class="fa fa-file-text-o"></i> Server Logs</h2>
+        <button class="close-btn" onclick="closeLogs()">×</button>
+      </div>
+      <div id="logsContent" class="logs-content">Loading logs...</div>
+      <div class="logs-footer">
+        <button class="refresh" onclick="loadLogs()">Refresh</button>
+        <button class="secondary" onclick="closeLogs()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="errorModal" onclick="closeErrorOnOutside(event)">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Error</h2>
+        <button class="close-btn" onclick="closeError()">×</button>
+      </div>
+      <div id="errorMessage"></div>
+    </div>
+  </div>
+
+<script src="./scripts.js"></script>
+
+</body>
+</html>

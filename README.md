@@ -2,7 +2,7 @@
 
 ## Setup
 
-Open `public/html/chat.html` in your browser. Ensure the backend API is running
+Open `public/pages/chat.html` in your browser. Ensure the backend API is running
 (default: `http://127.0.0.1:5000`).
 
 ## Configuration
