@@ -21,6 +21,7 @@
     </header>
 
     <div id="newConversation" onclick="createConversation()"><i class="fa fa-plus"></i> New Conversation</div>
+    <div id="heartbeat" onclick="openHeartbeat()"><i class="fa fa-heart"></i> Heartbeat</div>
     <div id="conversations">
     </div>
 
@@ -145,6 +146,21 @@
       <div class="logs-footer">
         <button class="refresh" onclick="loadLogs()">Refresh</button>
         <button class="secondary" onclick="closeLogs()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Heartbeat Modal -->
+  <div id="heartbeatModal" onclick="closeHeartbeatOnOutside(event)">
+    <div class="heartbeat-modal-content">
+      <div class="heartbeat-modal-header">
+        <h2><i class="fa fa-heart"></i> Heartbeat</h2>
+        <button class="close-btn" onclick="closeHeartbeat()">×</button>
+      </div>
+      <div id="heartbeatContent" class="heartbeat-content">Loading heartbeat...</div>
+      <div class="heartbeat-footer">
+        <button class="refresh" onclick="loadHeartbeat()">Refresh</button>
+        <button class="secondary" onclick="closeHeartbeat()">Close</button>
       </div>
     </div>
   </div>

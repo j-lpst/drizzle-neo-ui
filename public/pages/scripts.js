@@ -65,6 +65,45 @@ function closeLogsOnOutside(event) {
   }
 }
 
+function openHeartbeat() {
+  document.getElementById("heartbeatModal").classList.add("open");
+  loadHeartbeat();
+}
+
+function closeHeartbeat() {
+  document.getElementById("heartbeatModal").classList.remove("open");
+}
+
+function closeHeartbeatOnOutside(event) {
+  if (event.target.id === "heartbeatModal") {
+    closeHeartbeat();
+  }
+}
+
+async function loadHeartbeat() {
+  const heartbeatContent = document.getElementById("heartbeatContent");
+  if (!heartbeatContent) return;
+
+  try {
+    const apiBase = getApiBase();
+    const response = await authenticatedFetch(`${apiBase}/heartbeat`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load heartbeat (${response.status})`);
+    }
+
+    const data = await response.json();
+    
+    if (data.success && data.response) {
+      heartbeatContent.innerHTML = `<div class="heartbeat-status success"><strong>Status:</strong> ${data.response}</div>`;
+    } else {
+      heartbeatContent.textContent = data.response || "Heartbeat data unavailable.";
+    }
+  } catch (error) {
+    heartbeatContent.innerHTML = `<div class="heartbeat-status error">Error loading heartbeat: ${error.message}</div>`;
+  }
+}
+
 function showError(message) {
   document.getElementById("errorMessage").textContent = message;
   document.getElementById("errorModal").classList.add("open");
