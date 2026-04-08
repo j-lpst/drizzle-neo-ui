@@ -466,6 +466,18 @@ async function deleteConversation(filename) {
     });
     const data = await response.json().catch(() => ({}));
 
+    if (response.status === 404) {
+      delete conversationTitles[filename];
+      saveConversationTitles();
+      conversationFiles = conversationFiles.filter(f => f !== filename);
+      renderConversationSidebar();
+      if (filename === currentConversationFile) {
+        const nextConversation = conversationFiles[0] || "context.json";
+        await openConversation(nextConversation, { showStartScreen: true });
+      }
+      return;
+    }
+
     if (!response.ok) {
       throw new Error(data.error || `Failed to delete conversation (${response.status})`);
     }
@@ -576,7 +588,8 @@ async function initializeConversations() {
   }
 
   const saved = localStorage.getItem("selectedConversation") || "context.json";
-  currentConversationFile = conversationFiles.includes(saved) ? saved : (conversationFiles[0] || "context.json");
+  const savedExists = conversationFiles.includes(saved);
+  currentConversationFile = savedExists ? saved : (conversationFiles[0] || "context.json");
 
   renderConversationSidebar();
   setChatHeaderForConversation(currentConversationFile);
@@ -660,8 +673,8 @@ function getNextConversationFilename() {
 async function createConversation() {
   try {
     const filename = getNextConversationFilename();
-    await createConversationFile(filename);
-    conversationFiles = await fetchConversationFiles();
+    conversationFiles.push(filename);
+    renderConversationSidebar();
     await openConversation(filename, { showStartScreen: true });
   } catch (error) {
     showError(`Could not create conversation: ${error.message || "Unknown error"}`);
@@ -699,13 +712,18 @@ async function openConversation(filename, options = {}) {
   localStorage.setItem("selectedConversation", filename);
   renderConversationSidebar();
   setChatHeaderForConversation(filename);
-  await restoreChatHistory(filename);
 
   const history = await fetchChatHistory(filename);
   const hasMessages = history.length > 0;
   const shouldShowStartScreen = showStartScreen || !hasMessages;
 
- if (shouldShowStartScreen) {
+  if (!hasMessages) {
+    document.getElementById("chatMessages").innerHTML = "";
+  } else {
+    await restoreChatHistory(filename);
+  }
+
+  if (shouldShowStartScreen) {
     setStartScreenVisible(true);
     const startInput = document.getElementById("startInput");
     if (startInput) {
@@ -723,12 +741,23 @@ function activateChatUI() {
   setStartScreenVisible(false);
 }
 
-function sendFromStart() {
+async function sendFromStart() {
   const input = document.getElementById("startInput");
   const text = input.value.trim();
   if (!text) return;
 
   activateChatUI();
+
+  const activeConversationAtSend = currentConversationFile;
+  if (activeConversationAtSend && !conversationFiles.includes(activeConversationAtSend)) {
+    try {
+      await createConversationFile(activeConversationAtSend);
+      conversationFiles = await fetchConversationFiles();
+    } catch (error) {
+      showError(`Could not create conversation file: ${error.message || "Unknown error"}`);
+      return;
+    }
+  }
 
   document.getElementById("chatInput").value = text;
   sendChat();
@@ -1414,6 +1443,9 @@ async function fetchChatHistory(filename = currentConversationFile) {
   console.log(`fetchChatHistory: Response from ${filename}:`, { ok: response.ok, status: response.status, hasContent: !!data.content });
 
   if (!response.ok) {
+    if (response.status === 404) {
+      return [];
+    }
     throw new Error(data.error || `Failed to load history (${response.status})`);
   }
 
@@ -1486,14 +1518,17 @@ async function restoreChatHistory(filename = currentConversationFile) {
   chat.innerHTML = "";
   const history = await fetchChatHistory(filename);
   for (const message of history) {
-    const msgElement = createMessageElement(
-      message.role,
-      message.text,
-      message.displayIndex,
-      message.originalIndex,
-      filename
-    );
-    chat.appendChild(msgElement);
+    const existingMsg = chat.querySelector(`[data-original-index="${message.originalIndex}"]`);
+    if (!existingMsg) {
+      const msgElement = createMessageElement(
+        message.role,
+        message.text,
+        message.displayIndex,
+        message.originalIndex,
+        filename
+      );
+      chat.appendChild(msgElement);
+    }
   }
   chat.scrollTop = chat.scrollHeight;
 }
@@ -1506,6 +1541,16 @@ async function sendChat() {
   const activeConversationAtSend = currentConversationFile;
   const shouldAutoName = activeConversationAtSend && !hasCustomConversationTitle(activeConversationAtSend);
   let provisionalTitle = "";
+
+  if (activeConversationAtSend && !conversationFiles.includes(activeConversationAtSend)) {
+    try {
+      await createConversationFile(activeConversationAtSend);
+      conversationFiles = await fetchConversationFiles();
+    } catch (error) {
+      showError(`Could not create conversation file: ${error.message || "Unknown error"}`);
+      return;
+    }
+  }
 
   if (shouldAutoName) {
     provisionalTitle = normalizeConversationTitle(text, formatConversationName(activeConversationAtSend));
