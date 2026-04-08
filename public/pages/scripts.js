@@ -22,6 +22,7 @@ function toggleSidebar() {
 function openSettings() {
   document.getElementById("settingsModal").classList.add("open");
   updateSoundStatus();
+  loadTools();
 }
 
 function closeSettings() {
@@ -1641,27 +1642,133 @@ async function typewriterLoopWithFetch(defaultText, getNextBannerText) {
 
   //Tools toggle stuff
 }
-function isToolsEnabled() {
-  return localStorage.getItem("toolsEnabled") !== "false";
+
+let toolsConfig = { enabled: [], disabled: [] };
+
+async function loadTools() {
+  const toolsList = document.getElementById("toolsList");
+  if (!toolsList) return;
+
+  try {
+    const apiBase = getApiBase();
+    const response = await authenticatedFetch(`${apiBase}/tools`);
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      toolsList.innerHTML = `<div class="tool-item error">Failed to load tools</div>`;
+      return;
+    }
+
+    toolsConfig = {
+      enabled: data.enabled || [],
+      disabled: data.disabled || [],
+    };
+
+    const allTools = [...toolsConfig.enabled, ...toolsConfig.disabled];
+
+    if (allTools.length === 0) {
+      toolsList.innerHTML = `<div class="tool-item empty">No tools available</div>`;
+      return;
+    }
+
+    toolsList.innerHTML = "";
+
+    for (const toolName of allTools.sort()) {
+      const isEnabled = toolsConfig.enabled.includes(toolName);
+      const toolDiv = document.createElement("div");
+      toolDiv.className = "tool-item";
+
+      const toolNameDisplay = toolName
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "tool-name";
+      nameSpan.textContent = toolNameDisplay;
+
+      const toggle = document.createElement("div");
+      toggle.className = "toggle-switch";
+      toggle.className += isEnabled ? " active" : "";
+      toggle.onclick = (e) => toggleTool(e, toolName);
+
+      toolDiv.appendChild(nameSpan);
+      toolDiv.appendChild(toggle);
+      toolsList.appendChild(toolDiv);
+    }
+  } catch (error) {
+    console.error("Failed to load tools:", error);
+    toolsList.innerHTML = `<div class="tool-item error">Failed to load tools: ${error.message}</div>`;
+  }
 }
 
-function setToolsEnabled(enabled) {
-  localStorage.setItem("toolsEnabled", enabled ? "true" : "false");
-}
-
-function toggleTools(event) {
+async function toggleTool(event, toolName) {
   event.stopPropagation();
 
-  const toggle = event.currentTarget;
-  const isActive = toggle.classList.toggle("active");
+  try {
+    const apiBase = getApiBase();
+    const response = await authenticatedFetch(`${apiBase}/tools/${encodeURIComponent(toolName)}/toggle`, {
+      method: "POST",
+    });
+    const data = await response.json().catch(() => ({}));
 
-  setToolsEnabled(isActive);
-}
+    if (!response.ok) {
+      showError(`Failed to toggle tool: ${data.error || "Unknown error"}`);
+      return;
+    }
 
-function getToolArgs() {
-  const args = [];
-  if (!isToolsEnabled()) {
-    args.push("--no-tools");
+    toolsConfig = data.config || toolsConfig;
+    await loadTools();
+  } catch (error) {
+    console.error("Failed to toggle tool:", error);
+    showError(`Failed to toggle tool: ${error.message}`);
   }
-  return args;
 }
+
+window.addEventListener("DOMContentLoaded", async function() {
+  setStartScreenVisible(false);
+  const darkMode = localStorage.getItem("darkMode");
+  if (darkMode === "enabled") {
+    document.body.classList.add("dark-mode");
+    document.querySelector(".toggle-switch").classList.add("active");
+  }
+
+  const apiBaseInput = document.getElementById("apiBaseInput");
+  if (apiBaseInput) {
+    apiBaseInput.value = getApiBase();
+    apiBaseInput.addEventListener("change", function () {
+      const value = apiBaseInput.value.trim();
+      if (value) {
+        localStorage.setItem("apiBase", value);
+      } else {
+        localStorage.removeItem("apiBase");
+        apiBaseInput.value = getApiBase();
+      }
+    });
+  }
+
+  const apiPasswordInput = document.getElementById("apiPasswordInput");
+  if (apiPasswordInput) {
+    const savedPassword = localStorage.getItem("apiPassword");
+    if (savedPassword) {
+      apiPasswordInput.value = savedPassword;
+    }
+    apiPasswordInput.addEventListener("change", function () {
+      const value = apiPasswordInput.value;
+      if (value) {
+        localStorage.setItem("apiPassword", value);
+      } else {
+        localStorage.removeItem("apiPassword");
+      }
+    });
+  }
+
+  await checkAndAuthenticate();
+  updateSoundStatus();
+  await initializeConversations();
+  await loadModels();
+  restoreModelSelection();
+  console.log("DOMContentLoaded: About to call refreshBannerFromAllConversations");
+  await refreshBannerFromAllConversations();
+  loadCachedBanners();
+  console.log("DOMContentLoaded: refreshBannerFromAllConversations completed");
+});

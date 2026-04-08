@@ -979,3 +979,53 @@ body.dark-mode .logs-content {
 @keyframes blinkCursor {
   50% { opacity: 0; }
 }
+
+#toolsSettings {
+  margin-top: 8px;
+}
+
+.tool-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+  padding-left: 24px;
+}
+
+.tool-item:last-child {
+  border-bottom: none;
+}
+
+.tool-name {
+  font-size: 14px;
+  color: #333;
+}
+
+.tool-item.error,
+.tool-item.empty {
+  justify-content: flex-start;
+  padding-left: 24px;
+  font-size: 13px;
+}
+
+.tool-item.error {
+  color: #c62828;
+}
+
+.tool-item.empty {
+  color: #666;
+  font-style: italic;
+}
+
+body.dark-mode .tool-item {
+  border-bottom-color: #333;
+}
+
+body.dark-mode .tool-name {
+  color: #ddd;
+}
+
+body.dark-mode .tool-item.empty {
+  color: #888;
+}
