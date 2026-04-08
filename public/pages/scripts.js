@@ -168,46 +168,15 @@ function normalizeBannerText(rawText, fallbackSuffix = "continue this chat") {
   return `${BANNER_PREFIX} ${safeSuffix}`;
 }
 
-async function generateBannerFromAllConversations() {
-  const banners = [];
-
-  for (const filename of conversationFiles) {
-    try {
-      const history = await fetchChatHistory(filename);
-      const lastUser = [...history].reverse().find((m) => m.role === "user");
-      const lastAi = [...history].reverse().find((m) => m.role === "ai");
-      const summaryParts = [];
-      if (lastUser && lastUser.text) summaryParts.push(`User asked: ${lastUser.text.slice(0, 150)}`);
-      if (lastAi && lastAi.text) summaryParts.push(`AI replied: ${lastAi.text.slice(0, 150)}`);
-      const conversationSummary = summaryParts.join("\n") || "No messages yet";
-
-      const apiBase = getApiBase();
-      const response = await authenticatedFetch(`${apiBase}/chat`, {
-        method: "POST",
-        body: JSON.stringify({
-          text: `Create one short startup banner about this conversation. It should start exactly with 'Drizzle AI ready to' and add up to 5 words that reference the conversation topic or content. Output only the banner text, nothing else.\n\nConversation "${formatConversationName(filename)}":\n${conversationSummary}`,
-          args: ["-notts", "--no-save"],
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-
-      if (response.ok && data.reply) {
-        const banner = normalizeBannerText(data.reply, `about ${formatConversationName(filename)}`);
-        banners.push(banner);
-      } else {
-        banners.push(normalizeBannerText("", `about ${formatConversationName(filename)}`));
-      }
-    } catch (error) {
-      console.error(`Error generating banner for ${filename}:`, error);
-      banners.push(normalizeBannerText("", `about ${formatConversationName(filename)}`));
-    }
+function getRandomConversations(count) {
+  if (conversationFiles.length <= count) {
+    console.log(`getRandomConversations: Not enough files (${conversationFiles.length} <= ${count}), returning all`);
+    return conversationFiles;
   }
-
-  if (banners.length === 0) {
-    return ["Drizzle AI ready to hydrate you with knowledge"];
-  }
-
-  return banners;
+  const shuffled = [...conversationFiles].sort(() => Math.random() - 0.5);
+  const result = shuffled.slice(0, count);
+  console.log(`getRandomConversations: Selected ${result.length} of ${conversationFiles.length} files:`, result);
+  return result;
 }
 
 function loadCachedBanners() {
@@ -226,10 +195,10 @@ function loadCachedBanners() {
   return false;
 }
 
-function saveCachedBanners() {
+function saveCachedBanners(selectedConversations) {
   try {
     localStorage.setItem("cachedBanners", JSON.stringify(latestBannerTexts));
-    localStorage.setItem("cachedBannerConversations", JSON.stringify(conversationFiles));
+    localStorage.setItem("cachedBannerConversations", JSON.stringify(selectedConversations));
   } catch (e) {
     console.error("Failed to save cached banners:", e);
   }
@@ -238,61 +207,27 @@ function saveCachedBanners() {
 async function refreshBannerFromAllConversations() {
   currentBannerIndex = 0;
 
+  console.log(`refreshBannerFromAllConversations: conversationFiles =`, conversationFiles);
+  console.log(`refreshBannerFromAllConversations: cachedBannerConversations =`, cachedBannerConversations);
+
   try {
-    // Check if we have cached banners and if conversation list hasn't changed much
-    if (loadCachedBanners()) {
-      // Check if any new conversations were added
-      const newConversations = conversationFiles.filter(
-        (f) => !cachedBannerConversations.includes(f)
-      );
-
-      if (newConversations.length > 0) {
-        // Generate banners only for new conversations
-        console.log("Found new conversations, generating banners for them:", newConversations);
-        const newBanners = [];
-        for (const filename of newConversations) {
-          try {
-            const history = await fetchChatHistory(filename);
-            const lastUser = [...history].reverse().find((m) => m.role === "user");
-            const lastAi = [...history].reverse().find((m) => m.role === "ai");
-            const summaryParts = [];
-            if (lastUser && lastUser.text) summaryParts.push(`User asked: ${lastUser.text.slice(0, 150)}`);
-            if (lastAi && lastAi.text) summaryParts.push(`AI replied: ${lastAi.text.slice(0, 150)}`);
-            const conversationSummary = summaryParts.join("\n") || "No messages yet";
-
-            const apiBase = getApiBase();
-             const response = await authenticatedFetch(`${apiBase}/chat`, {
-               method: "POST",
-               body: JSON.stringify({
-                 text: `Create one short startup banner about this conversation. It should start exactly with 'Drizzle AI ready to' and add up to 5 words that reference the conversation topic or content. Output only the banner text, nothing else.\n\nConversation "${formatConversationName(filename)}":\n${conversationSummary}`,
-                 args: ["-notts", "--no-save"],
-               }),
-             });
-             const data = await response.json().catch(() => ({}));
-
-            if (response.ok && data.reply) {
-              const banner = normalizeBannerText(data.reply, `about ${formatConversationName(filename)}`);
-              newBanners.push(banner);
-            } else {
-              newBanners.push(normalizeBannerText("", `about ${formatConversationName(filename)}`));
-            }
-          } catch (error) {
-            console.error(`Error generating banner for ${filename}:`, error);
-            newBanners.push(normalizeBannerText("", `about ${formatConversationName(filename)}`));
-          }
-        }
-
-        // Combine existing banners with new ones
-        latestBannerTexts = [...latestBannerTexts, ...newBanners];
-        cachedBannerConversations = conversationFiles;
-        saveCachedBanners();
-      }
+    // Check if we have cached banners
+    const hasCache = loadCachedBanners();
+    if (hasCache) {
+      // Always use cached banners - never regenerate
+      console.log("Using cached banners from localStorage");
+      return;
     } else {
-      // No cached banners, generate all
+      // No cached banners, generate from random conversations (max 5)
       const banners = [];
-      for (const filename of conversationFiles) {
+      const selectedConversations = getRandomConversations(5);
+      console.log(`Generating banners for ${selectedConversations.length} random conversations:`, selectedConversations);
+      
+      for (const filename of selectedConversations) {
+        console.log(`Processing conversation: ${filename}`);
         try {
           const history = await fetchChatHistory(filename);
+          console.log(`  ${filename}: ${history.length} messages`);
           const lastUser = [...history].reverse().find((m) => m.role === "user");
           const lastAi = [...history].reverse().find((m) => m.role === "ai");
           const summaryParts = [];
@@ -300,15 +235,18 @@ async function refreshBannerFromAllConversations() {
           if (lastAi && lastAi.text) summaryParts.push(`AI replied: ${lastAi.text.slice(0, 150)}`);
           const conversationSummary = summaryParts.join("\n") || "No messages yet";
 
-         const apiBase = getApiBase();
-           const response = await authenticatedFetch(`${apiBase}/chat`, {
-             method: "POST",
-             body: JSON.stringify({
-               text: `Create one short startup banner about this conversation. It should start exactly with 'Drizzle AI ready to' and add up to 5 words that reference the conversation topic or content. Output only the banner text, nothing else.\n\nConversation "${formatConversationName(filename)}":\n${conversationSummary}`,
-               args: ["-notts", "--no-save"],
-             }),
-           });
-           const data = await response.json().catch(() => ({}));
+          const apiBase = getApiBase();
+          const promptText = `Create one short startup banner about this conversation. It should start exactly with 'Drizzle AI ready to' and add up to 5 words that reference the conversation topic or content. Output only the banner text, nothing else.\n\nConversation "${formatConversationName(filename)}":\n${conversationSummary}`;
+          console.log(`  Sending request for ${filename}`);
+          const response = await authenticatedFetch(`${apiBase}/chat`, {
+            method: "POST",
+            body: JSON.stringify({
+              text: promptText,
+              args: ["-notts", "--no-save", "-cf", filename],
+            }),
+          });
+          const data = await response.json().catch(() => ({}));
+          console.log(`  Response for ${filename}:`, data);
 
           if (response.ok && data.reply) {
             const banner = normalizeBannerText(data.reply, `about ${formatConversationName(filename)}`);
@@ -327,8 +265,8 @@ async function refreshBannerFromAllConversations() {
       } else {
         latestBannerTexts = banners;
       }
-      cachedBannerConversations = conversationFiles;
-      saveCachedBanners();
+      cachedBannerConversations = selectedConversations;
+      saveCachedBanners(selectedConversations);
     }
   } catch (error) {
     console.error("Failed to generate banners from conversations:", error);
@@ -385,9 +323,12 @@ window.addEventListener("DOMContentLoaded", async function() {
   await checkAndAuthenticate();
   updateSoundStatus();
   await initializeConversations();
-  loadCachedBanners();
   await loadModels();
   restoreModelSelection();
+  console.log("DOMContentLoaded: About to call refreshBannerFromAllConversations");
+  await refreshBannerFromAllConversations();
+  loadCachedBanners();
+  console.log("DOMContentLoaded: refreshBannerFromAllConversations completed");
 });
 
 function isConversationFile(filename) {
@@ -504,8 +445,6 @@ async function deleteConversation(filename) {
     } else {
       renderConversationSidebar();
     }
-
-    refreshBannerFromAllConversations();
   } catch (error) {
     showError(`Could not delete conversation: ${error.message || "Unknown error"}`);
   }
@@ -683,7 +622,6 @@ async function createConversation() {
     const filename = getNextConversationFilename();
     await createConversationFile(filename);
     conversationFiles = await fetchConversationFiles();
-    refreshBannerFromAllConversations();
     await openConversation(filename, { showStartScreen: true });
   } catch (error) {
     showError(`Could not create conversation: ${error.message || "Unknown error"}`);
@@ -711,9 +649,6 @@ async function openConversation(filename, options = {}) {
         startInput.style.overflowY = "hidden";
         startInput.focus();
       }
-      if (shouldShowStartScreen) {
-        refreshBannerFromAllConversations();
-      }
     } else {
       setStartScreenVisible(false);
     }
@@ -730,7 +665,7 @@ async function openConversation(filename, options = {}) {
   const hasMessages = history.length > 0;
   const shouldShowStartScreen = showStartScreen || !hasMessages;
 
-  if (shouldShowStartScreen) {
+ if (shouldShowStartScreen) {
     setStartScreenVisible(true);
     const startInput = document.getElementById("startInput");
     if (startInput) {
@@ -739,7 +674,6 @@ async function openConversation(filename, options = {}) {
       startInput.style.overflowY = "hidden";
       startInput.focus();
     }
-    refreshBannerFromAllConversations();
   } else {
     setStartScreenVisible(false);
   }
@@ -1433,8 +1367,11 @@ async function fetchChatHistory(filename = currentConversationFile) {
   if (!filename) return [];
 
   const apiBase = getApiBase();
-  const response = await authenticatedFetch(`${apiBase}/state/${encodeURIComponent(filename)}`);
+  const url = `${apiBase}/state/${encodeURIComponent(filename)}`;
+  console.log(`fetchChatHistory: Fetching ${url}`);
+  const response = await authenticatedFetch(url);
   const data = await response.json().catch(() => ({}));
+  console.log(`fetchChatHistory: Response from ${filename}:`, { ok: response.ok, status: response.status, hasContent: !!data.content });
 
   if (!response.ok) {
     throw new Error(data.error || `Failed to load history (${response.status})`);
@@ -1465,6 +1402,7 @@ async function fetchChatHistory(filename = currentConversationFile) {
     }
   }
 
+  console.log(`fetchChatHistory: ${filename} returned ${displayableMessages.length} messages`);
   return displayableMessages;
 }
 
