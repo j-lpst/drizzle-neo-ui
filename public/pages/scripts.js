@@ -554,7 +554,7 @@ async function generateConversationTitleFromFirstMessage(message, filename) {
       method: "POST",
       body: JSON.stringify({
         text: `Create a short conversation title (3 to 6 words) for this first user message. Reply with title only. Message: ${message}`,
-        args: ["-notts", "--no-save"],
+        args: ["-notts", "--no-save", "-cf", filename],
       }),
     });
     const data = await response.json().catch(() => ({}));
