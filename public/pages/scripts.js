@@ -10,6 +10,25 @@ let cachedBannerConversations = [];
 let isAuthenticated = false;
 const BANNER_PREFIX = "Drizzle AI ready to";
 
+function runStartupSplash() {
+  const splash = document.getElementById("startupSplash");
+  if (!splash) return;
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const fadeDelay = reduceMotion ? 0 : 2300;
+  const fadeDuration = reduceMotion ? 0 : 800;
+
+  window.setTimeout(() => {
+    splash.classList.add("startup-hide");
+  }, fadeDelay);
+
+  window.setTimeout(() => {
+    if (splash.parentNode) {
+      splash.parentNode.removeChild(splash);
+    }
+  }, fadeDelay + fadeDuration + 100);
+}
+
 function toggleSidebar() {
   const sidebar = document.getElementById("sidebar");
   const toggle = document.getElementById("sidebarToggle");
@@ -318,6 +337,7 @@ async function refreshBannerFromAllConversations() {
 
 // Restore dark mode preference on page load
 window.addEventListener("DOMContentLoaded", async function() {
+  runStartupSplash();
   setStartScreenVisible(false);
   const darkMode = localStorage.getItem("darkMode");
   if (darkMode === "enabled") {
