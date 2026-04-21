@@ -9,24 +9,133 @@ let bannerLoopStarted = false;
 let cachedBannerConversations = [];
 let isAuthenticated = false;
 const BANNER_PREFIX = "Drizzle AI ready to";
+let startupAudioStarted = false;
+let startupAudioFadeOutTimer = null;
+
+function rampAudioVolume(audio, from, to, durationMs) {
+  const safeDuration = Math.max(0, Number(durationMs) || 0);
+  const start = performance.now();
+  const startVolume = Math.max(0, Math.min(1, from));
+  const endVolume = Math.max(0, Math.min(1, to));
+  audio.volume = startVolume;
+
+  if (safeDuration === 0) {
+    audio.volume = endVolume;
+    return;
+  }
+
+  const tick = (now) => {
+    const progress = Math.min(1, (now - start) / safeDuration);
+    audio.volume = startVolume + (endVolume - startVolume) * progress;
+    if (progress < 1) {
+      requestAnimationFrame(tick);
+    }
+  };
+
+  requestAnimationFrame(tick);
+}
+
+window.onload = function() {
+  const audio = document.getElementById("my_audio");
+  if (audio) {
+    audio.play().catch((error) => {
+      console.warn("[startup-audio] window.onload play failed:", error);
+    });
+  }
+};
+
+async function playStartupAudio(reason = "startup", splashLifetimeMs = 3200) {
+  const audio = document.getElementById("my_audio");
+  if (!audio) {
+    console.warn("[startup-audio] Missing #my_audio element.");
+    return false;
+  }
+
+  const source = audio.currentSrc || audio.src || "(no source)";
+  console.log(`[startup-audio] Source: ${source}`);
+
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+    audio.muted = false;
+    audio.volume = 0;
+    console.log(`[startup-audio] play attempt (${reason})`);
+    await audio.play();
+    console.log(`[startup-audio] play() resolved (${reason})`);
+
+    const fadeInMs = 650;
+    const fadeOutMs = 650;
+    const fadeOutLeadMs = 250;
+    const totalMs = Math.max(1400, Number(splashLifetimeMs) || 3200);
+    const fadeOutStart = Math.max(fadeInMs + 200, totalMs - fadeOutMs - fadeOutLeadMs);
+
+    if (startupAudioFadeOutTimer) {
+      window.clearTimeout(startupAudioFadeOutTimer);
+      startupAudioFadeOutTimer = null;
+    }
+
+    rampAudioVolume(audio, 0, 1, fadeInMs);
+    startupAudioFadeOutTimer = window.setTimeout(() => {
+      rampAudioVolume(audio, audio.volume, 0, fadeOutMs);
+    }, fadeOutStart);
+
+    return true;
+  } catch (error) {
+    const code = audio.error ? audio.error.code : "unknown";
+    console.warn(`[startup-audio] play failed (${reason}), media error code: ${code}`, error);
+    return false;
+  }
+}
 
 function runStartupSplash() {
   const splash = document.getElementById("startupSplash");
   if (!splash) return;
+  const unlockButton = document.getElementById("startupSoundUnlock");
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const fadeDelay = reduceMotion ? 0 : 2300;
   const fadeDuration = reduceMotion ? 0 : 800;
+  const splashLifetimeMs = fadeDelay + fadeDuration + 100;
 
-  window.setTimeout(() => {
-    splash.classList.add("startup-hide");
-  }, fadeDelay);
+  splash.classList.add("await-audio");
 
-  window.setTimeout(() => {
-    if (splash.parentNode) {
-      splash.parentNode.removeChild(splash);
+  const beginStartupAnimation = () => {
+    splash.classList.remove("await-audio");
+    if (unlockButton) {
+      unlockButton.style.display = "none";
     }
-  }, fadeDelay + fadeDuration + 100);
+
+    window.setTimeout(() => {
+      splash.classList.add("startup-hide");
+    }, fadeDelay);
+
+    window.setTimeout(() => {
+      if (splash.parentNode) {
+        splash.parentNode.removeChild(splash);
+      }
+    }, fadeDelay + fadeDuration + 100);
+  };
+
+  const startAudioOnce = async (reason) => {
+    if (startupAudioStarted) return;
+    const played = await playStartupAudio(reason, splashLifetimeMs);
+    if (played) {
+      startupAudioStarted = true;
+      beginStartupAnimation();
+    } else {
+      console.log("[startup-audio] Waiting for manual unlock to synchronize sound with startup animation.");
+    }
+  };
+
+  if (unlockButton) {
+    unlockButton.addEventListener("click", async () => {
+      await startAudioOnce("startup-unlock-button");
+    });
+  }
+
+  window.setTimeout(async () => {
+    await startAudioOnce("startup-initial");
+  }, 40);
 }
 
 function toggleSidebar() {
